@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: url-extractor-service
+
+server:
+  port: 8095
+  error:
+    whitelabel:
+      enabled: false

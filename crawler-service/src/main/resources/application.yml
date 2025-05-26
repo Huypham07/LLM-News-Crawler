@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: crawler-service
+
+server:
+  port: 8092
+  error:
+    whitelabel:
+      enabled: false

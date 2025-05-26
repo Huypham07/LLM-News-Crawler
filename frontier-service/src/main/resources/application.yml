@@ -1,0 +1,91 @@
+spring:
+  application:
+    name: frontier-service
+  data:
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb://root:root@localhost:27017/crawlerdb?authSource=admin}
+    # Kafka Configuration
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: frontier-service
+      auto-offset-reset: latest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      properties:
+        max.poll.records: 100
+        fetch.min.bytes: 1024
+        fetch.max.wait.ms: 500
+
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: 1
+      retries: 3
+      properties:
+        batch.size: 16384
+        linger.ms: 5
+        buffer.memory: 33554432
+
+  # Frontier Service Configuration
+frontier:
+  max-queue-size: 10000
+  number-of-back-queues: 10
+  max-retry-count: 3
+  retry-delay-ms: 60000
+  batch-size: 50
+  crawler-batch-size: 10
+
+  # Thread pool configuration
+  core-thread-pool-size: 10
+  max-thread-pool-size: 20
+  thread-pool-queue-capacity: 100
+
+# Logging Configuration
+logging:
+  level:
+    com.vdt.crawler.frontier_service: DEBUG
+    org.springframework.kafka: INFO
+    org.apache.kafka: WARN
+    org.springframework.data.mongodb: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/frontier-service.log
+  logback:
+    rollingpolicy:
+      max-file-size: 100MB
+      max-history: 30
+
+# Management and Monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+
+server:
+  port: 8091
+  error:
+    whitelabel:
+      enabled: false
+
+springdoc:
+  swagger-ui:
+    path: /api/docs
+
+crawler:
+  domains:
+    - vnexpress.net
+    - tuoitre.vn
+    - thanhnien.vn

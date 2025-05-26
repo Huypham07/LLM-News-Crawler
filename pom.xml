@@ -2,12 +2,6 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <parent>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-parent</artifactId>
-    <version>3.5.0</version>
-    <relativePath/> <!-- lookup parent from repository -->
-  </parent>
   <groupId>com.vdt.crawler</groupId>
   <artifactId>llm-news-crawler</artifactId>
   <version>1.0-SNAPSHOT</version>
@@ -15,14 +9,12 @@
   <name>llm-news-crawler</name>
   <url>http://maven.apache.org</url>
     <modules>
-        <module>scheduler-service</module>
         <module>frontier-service</module>
         <module>crawler-service</module>
         <module>llm-parsing-service</module>
         <module>content-store-service</module>
         <module>url-extractor-service</module>
         <module>search-engine</module>
-        <module>common</module>
     </modules>
 
     <properties>

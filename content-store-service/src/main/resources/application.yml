@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: content-store-service
+
+server:
+  port: 8094
+  error:
+    whitelabel:
+      enabled: false

@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: search-engine-service
+
+server:
+  port: 8096
+  error:
+    whitelabel:
+      enabled: false

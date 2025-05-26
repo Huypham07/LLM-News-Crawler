@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: llm-parsing-service
+
+server:
+  port: 8093
+  error:
+    whitelabel:
+      enabled: false
