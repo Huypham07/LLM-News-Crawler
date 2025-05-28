@@ -48,13 +48,23 @@ public class SchedulerController {
     public ResponseEntity<Domain> updateDomain(@PathVariable String domain, @RequestBody Domain domainDetails) {
         return domainRepository.findByDomain(domain)
                 .map(domainObj -> {
-                    domainObj.setDomain(domainDetails.getDomain());
-                    domainObj.setSeedUrls(domainDetails.getSeedUrls());
-                    domainObj.setPriority(domainDetails.getPriority());
-                    domainObj.setActive(domainDetails.getActive());
+                    if (domainDetails.getDomain() != null) {
+                        domainObj.setDomain(domainDetails.getDomain());
+                    }
+                    if (domainDetails.getSeedUrls() != null) {
+                        domainObj.setSeedUrls(domainDetails.getSeedUrls());
+                    }
+                    if (domainDetails.getActive() != null) {
+                        domainObj.setActive(domainDetails.getActive());
+                    }
+                    if (domainDetails.getLastCrawled() != null) {
+                        domainObj.setLastCrawled(domainDetails.getLastCrawled());
+                    }
+                    domainDetails.setPriority(domainObj.getPriority());
                     return ResponseEntity.ok(domainRepository.save(domainObj));
                 })
                 .orElse(ResponseEntity.notFound().build());
+
     }
 
     @DeleteMapping("/domains/{domain}")

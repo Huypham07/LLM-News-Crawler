@@ -3,7 +3,7 @@ spring:
     name: search-engine-service
 
 server:
-  port: 8096
+  port: 8095
   error:
     whitelabel:
       enabled: false

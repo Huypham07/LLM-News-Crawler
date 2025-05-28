@@ -1,0 +1,75 @@
+server:
+  port: 8092
+  error:
+    whitelabel:
+      enabled: false
+
+spring:
+  application:
+    name: fetcher-service
+
+  # kafka
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: fetcher-service
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      properties:
+        max.poll.records: 100
+        fetch.min.bytes: 1024
+        fetch.max.wait.ms: 500
+
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      retries: 3
+      properties:
+        batch.size: 16384
+        linger.ms: 5
+        buffer.memory: 33554432
+
+  # Database
+  data:
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb://root:root@localhost:27017/crawlerdb?authSource=admin}
+
+    # Redis
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: 6379
+      timeout: 2000ms
+      jedis:
+        pool:
+          max-active: 8
+          max-wait: -1ms
+          max-idle: 8
+          min-idle: 0
+
+
+# Logging Configuration
+logging:
+  level:
+    com.vdt.crawler.fetcher_service: DEBUG
+    org.springframework.kafka: INFO
+    org.apache.kafka: WARN
+    org.springframework.data.mongodb: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/fetcher-service.log
+  logback:
+    rollingpolicy:
+      max-file-size: 100MB
+      max-history: 30
+
+springdoc:
+  swagger-ui:
+    path: /api/docs
+
+fetcher-service:
+  frontier-hostname: frontier-service

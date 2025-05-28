@@ -15,6 +15,11 @@ services:
       - mongo_data:/data/db
     networks:
       - crawler-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
 
   mongo-express:
     image: mongo-express
@@ -30,6 +35,27 @@ services:
       - mongo
     networks:
       - crawler-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    hostname: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - crawler-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   # Zookeeper for Kafka
   zookeeper:
@@ -44,6 +70,10 @@ services:
       - zookeeper_logs:/var/lib/zookeeper/log
     networks:
       - crawler-network
+    deploy:
+      resources:
+        limits:
+          memory: 512MB
 
   # Kafka Message Broker
   kafka:
@@ -72,10 +102,14 @@ services:
     networks:
       - crawler-network
     healthcheck:
-      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
-      interval: 15s
+      test: [ "CMD", "bash", "-c", "nc -z kafka 9092" ]
+      interval: 20s
       timeout: 10s
-      retries: 3
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 2G
 
   # Kafka UI for management
   kafka-ui:
@@ -92,6 +126,10 @@ services:
       KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
     networks:
       - crawler-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   # Frontier Service
   frontier-service:
@@ -117,8 +155,36 @@ services:
     networks:
       - crawler-network
 
+  # Frontier Service
+  fetcher-service:
+    build:
+      context: ./fetcher-service
+      dockerfile: Dockerfile
+    container_name: fetcher-service
+    restart: unless-stopped
+    ports:
+      - "8092:8092"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATA_MONGODB_URI: mongodb://root:root@mongo:27017/crawlerdb?authSource=admin
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      JAVA_OPTS: "-Xmx1g -Xms512m"
+      REDIS_HOST: redis
+    depends_on:
+      mongo:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - ./fetcher-service/logs:/app/logs
+    networks:
+      - crawler-network
+
 volumes:
   mongo_data:
+  redis_data:
   zookeeper_data:
   zookeeper_logs:
   kafka_data:

@@ -39,6 +39,7 @@ public class FrontierService {
     private final ReadWriteLock backQueueLock = new ReentrantReadWriteLock();
     private final ReadWriteLock mappingLock = new ReentrantReadWriteLock();
 
+    private final ConcurrentSkipListSet<String> retryUrlsSet = new ConcurrentSkipListSet<>();
     // Queue selectors
     private volatile String currentBackQueue = null;
 
@@ -98,12 +99,13 @@ public class FrontierService {
 
     private void processUrl(String url) {
         try {
-            String host = new URL(url).getHost();
             // Check robots.txt
             if (!robotstxtServer.allows(url)) {
                 logger.debug("URL blocked by robots.txt: {}", url);
                 return;
             }
+
+            String host = new URL(url).getHost();
 
             Double crawlDelay_double = robotstxtServer.getCrawlDelay(url);
             int crawlDelay = crawlDelay_double != null ? crawlDelay_double.intValue() : 2;
@@ -133,6 +135,17 @@ public class FrontierService {
     private String extractDomain(String url) throws MalformedURLException {
         URL urlObj = new URL(url);
         return urlObj.getHost().toLowerCase();
+    }
+
+    public void addRetryUrl(String url) {
+        retryUrlsSet.add(url);
+    }
+
+    public String getNextUrlfromRetrySet() {
+        if (retryUrlsSet.isEmpty()) {
+            return null;
+        }
+        return retryUrlsSet.first();
     }
 
     public static class UrlWithTimestamp implements Comparable<UrlWithTimestamp> {

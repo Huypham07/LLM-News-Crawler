@@ -51,3 +51,10 @@ Each service has its own `application.yml` file with configuration for:
 3. Commit your changes
 4. Push to the branch
 5. Create a Pull Request
+
+
+docker exec cassandra cqlsh -e "
+CREATE KEYSPACE IF NOT EXISTS crawler
+WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};
+
+USE crawler;

@@ -10,10 +10,9 @@
   <url>http://maven.apache.org</url>
     <modules>
         <module>frontier-service</module>
-        <module>crawler-service</module>
+        <module>fetcher-service</module>
         <module>llm-parsing-service</module>
         <module>content-store-service</module>
-        <module>url-extractor-service</module>
         <module>search-engine</module>
     </modules>
 

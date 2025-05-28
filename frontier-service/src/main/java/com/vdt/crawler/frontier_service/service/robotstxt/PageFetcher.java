@@ -30,14 +30,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class PageFetcher {
-    protected static final Logger logger = LoggerFactory.getLogger(PageFetcher.class);
+    private static final Logger logger = LoggerFactory.getLogger(PageFetcher.class);
     protected final Object mutex = new Object();
 
     protected PoolingHttpClientConnectionManager connectionManager;
     protected CloseableHttpClient httpClient;
     private long lastFetchTime = 0;
     private final int politenessDelay;
-    private final int maxDownloadSize = 500 * 1024;
+    private final int maxDownloadSize = 500 * 1024; // 500KB
+    protected IdleConnectionMonitorThread connectionMonitorThread = null;
 
     public PageFetcher(int timeoutMillis, int politenessDelayMillis, DnsResolver dnsResolver) {
         this.politenessDelay = politenessDelayMillis;
@@ -51,19 +52,19 @@ public class PageFetcher {
         RegistryBuilder<ConnectionSocketFactory> connRegistryBuilder = RegistryBuilder.create();
         connRegistryBuilder.register("http", PlainConnectionSocketFactory.INSTANCE);
 
-            try {
-                SSLConnectionSocketFactory sslFactory =
-                        new SSLConnectionSocketFactory(SSLContexts.custom().loadTrustMaterial(null, (TrustStrategy) (chain, authType) -> true).build(), NoopHostnameVerifier.INSTANCE);
-                connRegistryBuilder.register("https", sslFactory);
-            } catch (NoSuchAlgorithmException | KeyManagementException | KeyStoreException | RuntimeException e) {
-                    logger.warn("Exception thrown while trying to register https");
-                    logger.debug("Stacktrace", e);
-            }
+        try {
+            SSLConnectionSocketFactory sslFactory =
+                    new SSLConnectionSocketFactory(SSLContexts.custom().loadTrustMaterial(null, (TrustStrategy) (chain, authType) -> true).build(), NoopHostnameVerifier.INSTANCE);
+            connRegistryBuilder.register("https", sslFactory);
+        } catch (NoSuchAlgorithmException | KeyManagementException | KeyStoreException | RuntimeException e) {
+            logger.warn("Exception thrown while trying to register https");
+            logger.debug("Stacktrace", e);
+        }
 
         Registry<ConnectionSocketFactory> connRegistry = connRegistryBuilder.build();
         connectionManager =
                 new PoolingHttpClientConnectionManager(connRegistry, dnsResolver);
-        connectionManager.setMaxTotal(50);
+        connectionManager.setMaxTotal(100);
         connectionManager.setDefaultMaxPerRoute(5);
 
         this.httpClient = HttpClientBuilder.create()
@@ -71,11 +72,15 @@ public class PageFetcher {
                 .setConnectionManager(connectionManager)
                 .setUserAgent("SimpleRobotsFetcher/1.0")
                 .build();
+
+        if (connectionMonitorThread == null) {
+            connectionMonitorThread = new IdleConnectionMonitorThread(connectionManager);
+        }
+        connectionMonitorThread.start();
     }
 
     public PageFetchResult fetchPage(String robotsTxtUrl)
             throws InterruptedException, IOException, PageBiggerThanMaxSizeException {
-        // Getting URL, setting headers & content
         PageFetchResult fetchResult = new PageFetchResult();
         synchronized (mutex) {
             long now = new Date().getTime();
@@ -138,13 +143,16 @@ public class PageFetcher {
             return fetchResult;
 
         } finally { // occurs also with thrown exceptions
-            if ((fetchResult.getEntity() == null) && (request != null)) {
+            if (fetchResult.getEntity() == null) {
                 request.abort();
             }
         }
     }
 
     public synchronized void shutDown() {
-        connectionManager.shutdown();
+        if (connectionMonitorThread != null) {
+            connectionManager.shutdown();
+            connectionMonitorThread.shutdown();
+        }
     }
 }

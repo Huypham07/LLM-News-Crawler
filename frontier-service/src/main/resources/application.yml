@@ -9,7 +9,7 @@ spring:
     bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     consumer:
       group-id: frontier-service
-      auto-offset-reset: latest
+      auto-offset-reset: earliest
       enable-auto-commit: false
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
@@ -21,26 +21,12 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
-      acks: 1
+      acks: all
       retries: 3
       properties:
         batch.size: 16384
         linger.ms: 5
         buffer.memory: 33554432
-
-  # Frontier Service Configuration
-frontier:
-  max-queue-size: 10000
-  number-of-back-queues: 10
-  max-retry-count: 3
-  retry-delay-ms: 60000
-  batch-size: 50
-  crawler-batch-size: 10
-
-  # Thread pool configuration
-  core-thread-pool-size: 10
-  max-thread-pool-size: 20
-  thread-pool-queue-capacity: 100
 
 # Logging Configuration
 logging:
@@ -89,3 +75,4 @@ crawler:
     - vnexpress.net
     - tuoitre.vn
     - thanhnien.vn
+    - dantri.com.vn

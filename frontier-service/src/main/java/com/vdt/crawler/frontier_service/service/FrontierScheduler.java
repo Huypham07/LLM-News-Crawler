@@ -48,7 +48,7 @@ public class FrontierScheduler {
      * Runs every 2 seconds
      */
     @Scheduled(fixedDelay = 2000)
-    public void sendUrlsToCrawlers() {
+    public void sendUrlsToFetcher() {
         try {
             List<String> urlsToSend = new ArrayList<>();
 
@@ -65,14 +65,42 @@ public class FrontierScheduler {
             if (!urlsToSend.isEmpty()) {
                 // Send to crawler service via Kafka
                 for (String url : urlsToSend) {
-                    kafkaTemplate.send("crawler_tasks", url);
+                    kafkaTemplate.send("fetching_tasks", url);
                 }
 
-                logger.debug("Sent {} URLs to crawlers", urlsToSend.size());
+                logger.debug("Sent {} URLs to fetcher", urlsToSend.size());
             }
 
         } catch (Exception e) {
-            logger.error("Error sending URLs to crawlers", e);
+            logger.error("Error sending URLs to fetcher", e);
+        }
+    }
+
+    /**
+     * Scheduled task to send URLs to crawlers
+     * Runs every 2 seconds
+     */
+    @Scheduled(fixedDelay = 300000)
+    public void retryUrlScheduler() {
+        try {
+            List<String> retryUrls = new ArrayList<>();
+
+            // Get URLs from back queue (respecting politeness)
+            for (int i = 0; i < 5; i++) { // Max 10 URLs per batch
+                String url = frontierService.getNextUrlfromRetrySet();
+                if (url != null) {
+                    retryUrls.add(url);
+                } else {
+                    break;
+                }
+            }
+
+            if (!retryUrls.isEmpty()) {
+                frontierService.addToFrontier(retryUrls);
+            }
+
+        } catch (Exception e) {
+            logger.error("Error retry URLs", e);
         }
     }
 
@@ -97,6 +125,8 @@ public class FrontierScheduler {
             logger.debug("Moved {} URLs from front to back queue", processedUrls.size());
         }
     }
+
+
 
     /**
      * Log frontier statistics periodically

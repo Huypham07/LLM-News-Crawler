@@ -88,64 +88,6 @@ public class FrontierController {
     }
 
     /**
-     * Get next URL from front queue
-     */
-    @GetMapping("/next/front")
-    public ResponseEntity<Map<String, Object>> getNextFromFrontQueue() {
-        try {
-            String url = frontierService.getNextUrlFromFrontQueue();
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("status", "success");
-            response.put("url", url);
-            response.put("timestamp", System.currentTimeMillis());
-
-            if (url != null) {
-                // Move to back queue for politeness
-                frontierService.moveToBackQueue(url);
-                response.put("moved_to_back_queue", true);
-            }
-
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            logger.error("Error getting next URL from front queue", e);
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("status", "error");
-            response.put("message", e.getMessage());
-
-            return ResponseEntity.internalServerError().body(response);
-        }
-    }
-
-    /**
-     * Get next URL from back queue
-     */
-    @GetMapping("/next/back")
-    public ResponseEntity<Map<String, Object>> getNextFromBackQueue() {
-        try {
-            String url = frontierService.getNextUrlFromBackQueue();
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("status", "success");
-            response.put("url", url);
-            response.put("timestamp", System.currentTimeMillis());
-
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            logger.error("Error getting next URL from back queue", e);
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("status", "error");
-            response.put("message", e.getMessage());
-
-            return ResponseEntity.internalServerError().body(response);
-        }
-    }
-
-    /**
      * Get frontier statistics
      */
     @GetMapping("/stats")
