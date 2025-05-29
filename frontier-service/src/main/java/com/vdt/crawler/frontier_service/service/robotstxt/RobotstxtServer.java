@@ -128,24 +128,7 @@ public class RobotstxtServer {
         HostDirectives directives = null;
         PageFetchResult fetchResult = null;
         try {
-            for (int redir = 0; redir < 3; ++redir) {
-                fetchResult = pageFetcher.fetchPage(robotsTxtUrl);
-                int status = fetchResult.getStatusCode();
-                // Follow redirects up to 3 levels
-                if ((status == HttpStatus.SC_MULTIPLE_CHOICES ||
-                     status == HttpStatus.SC_MOVED_PERMANENTLY ||
-                     status == HttpStatus.SC_MOVED_TEMPORARILY ||
-                     status == HttpStatus.SC_SEE_OTHER ||
-                     status == HttpStatus.SC_TEMPORARY_REDIRECT || status == 308) &&
-                    // SC_PERMANENT_REDIRECT RFC7538
-                    fetchResult.getMovedToUrl() != null) {
-                    robotsTxtUrl = fetchResult.getMovedToUrl();
-                    fetchResult.discardContentIfNotConsumed();
-                } else {
-                    // Done on all other occasions
-                    break;
-                }
-            }
+            fetchResult = pageFetcher.fetchPage(robotsTxtUrl);
 
             if (fetchResult.getStatusCode() == HttpStatus.SC_OK) {
                 // Most recent answer on robots.txt max size is
@@ -170,6 +153,7 @@ public class RobotstxtServer {
                         "Can't read this robots.txt: {}  as it is not written in plain text, " +
                         "contentType: {}", robotsTxtUrl, fetchResult.getContentType());
                 }
+                logger.debug("Fetch Robots.txt success !!");
             } else {
                 logger.debug("Can't read this robots.txt: {}  as it's status code is {}",
                              robotsTxtUrl, fetchResult.getStatusCode());

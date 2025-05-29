@@ -1,5 +1,6 @@
-package com.vdt.crawler.frontier_service.model;
+package com.vdt.crawler.content_store_service.model;
 
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -10,30 +11,28 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.Instant;
-import java.util.List;
 
-@Document(collection = "domains")
+@Document(collection = "contents")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Domain {
+public class Content {
     @Id
     private String id;
 
     @Indexed(unique = true)
-    private String domain;
+    private String url;
 
-    @Field("seed_urls")
-    private List<String> seedUrls;
+    @NotNull
+    @Field("content_title")
+    private String contentTitle;
 
-    @Field("last_crawled")
-    private Instant lastCrawled;
+    @NotNull
+    private String content;
 
-    @Field("create_at")
-    private Instant createAt;
+    private String author;
 
-    private int priority;
-
-    private boolean active = true;
+    @Field("publish_at")
+    private Instant lastAttempt;
 }

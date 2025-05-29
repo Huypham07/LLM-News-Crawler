@@ -1,4 +1,4 @@
-package com.vdt.crawler.frontier_service.model;
+package com.vdt.crawler.llm_parsing_service.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -10,30 +10,28 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.Instant;
-import java.util.List;
 
-@Document(collection = "domains")
+@Document(collection = "url_metadata")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Domain {
+public class URLMetaData {
     @Id
     private String id;
 
     @Indexed(unique = true)
-    private String domain;
+    private String url;
 
-    @Field("seed_urls")
-    private List<String> seedUrls;
+    @Field("raw_html")
+    private String rawHtml;
 
-    @Field("last_crawled")
-    private Instant lastCrawled;
+    @Field("status_code")
+    private Integer statusCode;
 
-    @Field("create_at")
-    private Instant createAt;
+    @Field("retry_count")
+    private int retryCount;
 
-    private int priority;
-
-    private boolean active = true;
+    @Field("last_attempt")
+    private Instant lastAttempt;
 }

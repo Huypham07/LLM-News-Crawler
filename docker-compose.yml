@@ -49,7 +49,7 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass root
     networks:
       - crawler-network
     deploy:
@@ -155,7 +155,7 @@ services:
     networks:
       - crawler-network
 
-  # Frontier Service
+  # Fetcher Service
   fetcher-service:
     build:
       context: ./fetcher-service
@@ -170,6 +170,8 @@ services:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       JAVA_OPTS: "-Xmx1g -Xms512m"
       REDIS_HOST: redis
+      REDIS_PASSWORD: root
+      FRONTIER_CONTAINER_HOSTNAME: frontier-service
     depends_on:
       mongo:
         condition: service_started
@@ -179,6 +181,60 @@ services:
         condition: service_started
     volumes:
       - ./fetcher-service/logs:/app/logs
+    networks:
+      - crawler-network
+
+  # LLM Parsing Service
+  llm-parsing-service:
+    build:
+      context: ./llm-parsing-service
+      dockerfile: Dockerfile
+    container_name: llm-parsing-service
+    restart: unless-stopped
+    ports:
+      - "8093:8093"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATA_MONGODB_URI: mongodb://root:root@mongo:27017/crawlerdb?authSource=admin
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      JAVA_OPTS: "-Xmx1g -Xms512m"
+      REDIS_HOST: redis
+      REDIS_PASSWORD: root
+      FRONTIER_CONTAINER_HOSTNAME: frontier-service
+    depends_on:
+      mongo:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - ./llm-parsing-service/logs:/app/logs
+    networks:
+      - crawler-network
+
+
+  # Content Storing Service
+  content-storing-service:
+    build:
+      context: ./content-store-service
+      dockerfile: Dockerfile
+    container_name: content-store-service
+    restart: unless-stopped
+    ports:
+      - "8093:8093"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATA_MONGODB_URI: mongodb://root:root@mongo:27017/crawlerdb?authSource=admin
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      JAVA_OPTS: "-Xmx1g -Xms512m"
+    depends_on:
+      mongo:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    volumes:
+      - ./content-store-service/logs:/app/logs
     networks:
       - crawler-network
 

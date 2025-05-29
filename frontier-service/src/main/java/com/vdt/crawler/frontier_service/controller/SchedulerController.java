@@ -3,6 +3,8 @@ package com.vdt.crawler.frontier_service.controller;
 import com.vdt.crawler.frontier_service.model.Domain;
 import com.vdt.crawler.frontier_service.repository.DomainRepository;
 import com.vdt.crawler.frontier_service.service.SchedulerService;
+import jakarta.validation.Valid;
+import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -45,26 +47,21 @@ public class SchedulerController {
     }
 
     @PutMapping("/domains/{domain}")
-    public ResponseEntity<Domain> updateDomain(@PathVariable String domain, @RequestBody Domain domainDetails) {
+    public ResponseEntity<Domain> updateDomain(@PathVariable String domain, @RequestBody @Valid Domain domainDetails) {
         return domainRepository.findByDomain(domain)
                 .map(domainObj -> {
-                    if (domainDetails.getDomain() != null) {
-                        domainObj.setDomain(domainDetails.getDomain());
-                    }
-                    if (domainDetails.getSeedUrls() != null) {
+                    if (domainDetails.getSeedUrls() != null && !domainDetails.getSeedUrls().isEmpty()) {
                         domainObj.setSeedUrls(domainDetails.getSeedUrls());
                     }
-                    if (domainDetails.getActive() != null) {
-                        domainObj.setActive(domainDetails.getActive());
+                    if (domainDetails.isActive() != domainObj.isActive()) {
+                        domainObj.setActive(domainDetails.isActive());
                     }
                     if (domainDetails.getLastCrawled() != null) {
                         domainObj.setLastCrawled(domainDetails.getLastCrawled());
                     }
-                    domainDetails.setPriority(domainObj.getPriority());
                     return ResponseEntity.ok(domainRepository.save(domainObj));
                 })
                 .orElse(ResponseEntity.notFound().build());
-
     }
 
     @DeleteMapping("/domains/{domain}")

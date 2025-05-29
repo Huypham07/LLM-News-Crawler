@@ -6,9 +6,6 @@ import com.vdt.crawler.fetcher_service.model.RetryUrlMessage;
 import com.vdt.crawler.fetcher_service.model.URLMetaData;
 import com.vdt.crawler.fetcher_service.repository.URLRepository;
 import com.vdt.crawler.fetcher_service.util.UrlHashUtil;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import org.apache.http.HttpStatus;
 import org.apache.http.NoHttpResponseException;
 import org.slf4j.Logger;
@@ -26,7 +23,6 @@ import java.io.UnsupportedEncodingException;
 import java.net.*;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.concurrent.TimeUnit;
 
 @Service
 public class FetcherService {
@@ -36,14 +32,14 @@ public class FetcherService {
     private final KafkaTemplate<String, String> parsingKafkaTemplate;
     private final KafkaTemplate<String, RetryUrlMessage> retryKafkaTemplate;
     private final URLRepository urlRepository;
-    private final RedisTemplate<String, Integer> redisTemplate;
+    private final RedisTemplate<String, Long> redisTemplate;
     private final RestTemplate restTemplate;
 
     @Autowired
     public FetcherService(PageFetcher pageFetcher, URLRepository urlRepository,
                           @Qualifier("parsingKafkaTemplate")KafkaTemplate<String, String> parsingKafkaTemplate,
                           @Qualifier("retryKafkaTemplate")KafkaTemplate<String, RetryUrlMessage> retryKafkaTemplate,
-                          RedisTemplate<String, Integer> redisTemplate, RestTemplate restTemplate) {
+                          RedisTemplate<String, Long> redisTemplate, RestTemplate restTemplate) {
         this.pageFetcher = pageFetcher;
         this.parsingKafkaTemplate = parsingKafkaTemplate;
         this.retryKafkaTemplate = retryKafkaTemplate;
@@ -66,6 +62,11 @@ public class FetcherService {
             return;
         }
 
+        if (!result.getContentType().contains("html")) {
+            logger.warn("url {} is not html -> drop", url);
+            return;
+        }
+
         String urlHash = UrlHashUtil.generateUrlHash(url);
         String content;
         try {
@@ -80,8 +81,11 @@ public class FetcherService {
         }
 
         String host;
+        String path;
         try {
-            host = new URL(url).getHost();
+            URL urlObj = new URL(url);
+            host = urlObj.getHost();
+            path = urlObj.getPath();
         } catch (MalformedURLException e) {
             logger.error("Malformed URL: {}", url);
             return;
@@ -104,8 +108,8 @@ public class FetcherService {
         if (result.getStatusCode() != HttpStatus.SC_OK) {
             urlMetaData.setRetryCount(urlMetaData.getRetryCount() + 1);
             urlRepository.save(urlMetaData);
-            redisTemplate.opsForValue().set("url:" + urlHash, urlMetaData.getStatusCode(), 20, TimeUnit.MINUTES);
-            retryKafkaTemplate.send("retry_url", new RetryUrlMessage(url, urlMetaData.getRetryCount(),
+            redisTemplate.opsForValue().set("status:" + urlHash, (long) result.getStatusCode(), Duration.ofMinutes(20));
+            retryKafkaTemplate.send("retry_url_tasks", new RetryUrlMessage(url, urlMetaData.getRetryCount(),
                     urlMetaData.getLastAttempt(), urlMetaData.getStatusCode()));
             return;
         }
@@ -115,10 +119,16 @@ public class FetcherService {
 
         // save in DB and Redis
         urlRepository.save(urlMetaData);
-        redisTemplate.opsForValue().set("url:" + urlHash, urlMetaData.getStatusCode(), 1, TimeUnit.HOURS);
+        redisTemplate.opsForValue().set("status:" + urlHash, (long) result.getStatusCode(), Duration.ofHours(1));
 
-        parsingKafkaTemplate.send("parsing_tasks", content);
-        logger.debug("sent raw html of url:{} to Parser", url);
+
+        if (path.isEmpty() || path.equals("/")) {
+            parsingKafkaTemplate.send("home_parsing_tasks", content);
+            logger.debug("sent raw html of url:{} to Parser to explore sitemap of domain", url);
+        } else {
+            parsingKafkaTemplate.send("parsing_tasks", content);
+            logger.debug("sent raw html of url:{} to Parser", url);
+        }
     }
 
     private PageFetchResult fetch(String url) {
@@ -143,20 +153,7 @@ public class FetcherService {
                     break;
                 }
             }
-
-            if (fetchResult.getStatusCode() == HttpStatus.SC_OK) {
-                fetchResult.fetchContent(500 * 1024 * 1024);
-                if (fetchResult.getContentType()
-                        .contains(
-                                "html")) {
-                    return fetchResult;
-                } else {
-                    logger.warn(
-                            "Can't read content, " + "contentType: {}", fetchResult.getContentType());
-                }
-            } else {
-                logger.debug("Can't access url: {}  as it's status code is {}", fetchUrl, fetchResult.getStatusCode());
-            }
+            fetchResult.fetchContent(500 * 1024 * 1024);
         } catch (SocketException | UnknownHostException | SocketTimeoutException |
                  NoHttpResponseException se) {
             logger.trace("Error fetching url: {}", fetchUrl);
@@ -174,16 +171,19 @@ public class FetcherService {
     }
 
     public void updateHostFetchStatus(String host) {
-        String key = "domain_tracker:" + host;
+        String hostHash = UrlHashUtil.generateUrlHash(host);
+        String keyFetchCount = "domain_tracker:fetch_count:" + hostHash;
+        String keyLastCrawl = "domain_tracker:last_crawl:" + hostHash;
 
-        Long fetchCount = redisTemplate.opsForHash().increment(key, "fetch_count", 1);
+        Long fetchCount = redisTemplate.opsForValue().increment(keyFetchCount, 1);
+        Long lastUpdate = redisTemplate.opsForValue().get(keyLastCrawl);
+        Instant now = Instant.now();
+        long nowMilli = Instant.now().toEpochMilli();
 
-        // Lấy thời gian update gần nhất
-        String lastUpdateStr = (String) redisTemplate.opsForHash().get(key, "last_update");
-        long now = Instant.now().toEpochMilli();
-        long lastUpdate = lastUpdateStr != null ? Long.parseLong(lastUpdateStr) : 0L;
+        fetchCount = fetchCount != null ? fetchCount : 1;
+        lastUpdate = lastUpdate != null ? lastUpdate: 0L;
 
-        boolean shouldUpdate = fetchCount >= 10 || now - lastUpdate > Duration.ofMinutes(3).toMillis();
+        boolean shouldUpdate = fetchCount >= 10 || nowMilli - lastUpdate > Duration.ofMinutes(3).toMillis();
 
         if (shouldUpdate) {
             logger.info("Trigger domain update for host: {}", host);
@@ -192,13 +192,13 @@ public class FetcherService {
             try {
                 Domain updated = new Domain();
                 updated.setDomain(host);
-                updated.setLastCrawled(Instant.now());
+                updated.setLastCrawled(now);
 
                 restTemplate.put("http://" + frontierHost + ":8091/api/domains/" + host, updated);
 
                 // Reset counter và update time
-                redisTemplate.opsForHash().put(key, "fetch_count", "0");
-                redisTemplate.opsForHash().put(key, "last_update", String.valueOf(now));
+                redisTemplate.opsForValue().set(keyFetchCount, 0L, Duration.ofMinutes(20));
+                redisTemplate.opsForValue().set(keyLastCrawl, nowMilli, Duration.ofMinutes(20));
             } catch (Exception e) {
                 logger.error("Failed to update domain: {}", host, e);
             }

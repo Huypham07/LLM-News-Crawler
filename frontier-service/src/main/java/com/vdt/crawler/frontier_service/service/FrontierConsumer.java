@@ -1,8 +1,6 @@
 package com.vdt.crawler.frontier_service.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vdt.crawler.frontier_service.model.RetryUrlMessage;
-import lombok.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,14 +9,14 @@ import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-@Component
+@Service
 public class FrontierConsumer {
 
     private static final Logger logger = LoggerFactory.getLogger(FrontierConsumer.class);
@@ -36,9 +34,9 @@ public class FrontierConsumer {
      * Consumer for "new_url" topic
      */
     @KafkaListener(
-            topics = "new_url",
-            containerFactory = "kafkaListenerContainerFactory",
-            groupId = "frontier-service",
+            topics = "new_url_tasks",
+            containerFactory = "newUrlListenerContainerFactory",
+            groupId = "new_url_group",
             concurrency = "5"
     )
     public void handleNewUrls(
@@ -66,9 +64,9 @@ public class FrontierConsumer {
      * Consumer for "retry_url" topic
      */
     @KafkaListener(
-            topics = "retry_url",
-            containerFactory = "retryKafkaListenerContainerFactory",
-            groupId = "frontier-service",
+            topics = "retry_url_tasks",
+            containerFactory = "retryListenerContainerFactory",
+            groupId = "retry_url_group",
             concurrency = "2"
     )
     public void handleRetryUrls(

@@ -1,9 +1,55 @@
-spring:
-  application:
-    name: llm-parsing-service
-
 server:
   port: 8093
   error:
     whitelabel:
       enabled: false
+
+spring:
+  application:
+    name: llm-parsing-service
+
+  # kafka
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+  # Database
+  data:
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb://root:root@localhost:27017/crawlerdb?authSource=admin}
+
+    # Redis
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: 6379
+      timeout: 2000ms
+      jedis:
+        pool:
+          max-active: 8
+          max-wait: -1ms
+          max-idle: 8
+          min-idle: 0
+      password: ${REDIS_PASSWORD:root}
+
+# Logging Configuration
+logging:
+  level:
+    com.vdt.crawler.llm_parsing_service: DEBUG
+    org.springframework.kafka: INFO
+    org.apache.kafka: WARN
+    org.springframework.data.mongodb: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/llm-parsing-service.log
+  logback:
+    rollingpolicy:
+      max-file-size: 100MB
+      max-history: 30
+
+springdoc:
+  swagger-ui:
+    path: /api/docs
+
+parsing-service:
+  frontier-hostname: ${FRONTIER_CONTAINER_HOSTNAME:localhost}

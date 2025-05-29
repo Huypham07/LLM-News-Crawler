@@ -7,10 +7,8 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Date;
 
 import com.vdt.crawler.frontier_service.exception.PageBiggerThanMaxSizeException;
-import com.vdt.crawler.frontier_service.utils.URLCanonicalizer;
 import org.apache.http.Header;
 import org.apache.http.HttpHeaders;
-import org.apache.http.HttpStatus;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -98,27 +96,8 @@ public class PageFetcher {
             // Setting HttpStatus
             int statusCode = response.getStatusLine().getStatusCode();
 
-            // If Redirect ( 3xx )
-            if (statusCode == HttpStatus.SC_MOVED_PERMANENTLY ||
-                    statusCode == HttpStatus.SC_MOVED_TEMPORARILY ||
-                    statusCode == HttpStatus.SC_MULTIPLE_CHOICES ||
-                    statusCode == HttpStatus.SC_SEE_OTHER ||
-                    statusCode == HttpStatus.SC_TEMPORARY_REDIRECT ||
-                    statusCode == 308) {
-                Header header = response.getFirstHeader(HttpHeaders.LOCATION);
-                if (header != null) {
-                    String movedToUrl =
-                            URLCanonicalizer.getCanonicalURL(header.getValue(), robotsTxtUrl);
-                    fetchResult.setMovedToUrl(movedToUrl);
-                }
-            } else if (statusCode >= 200 && statusCode <= 299) {
+            if (statusCode == 200 ) {
                 fetchResult.setFetchedUrl(robotsTxtUrl);
-                String uri = request.getURI().toString();
-                if (!uri.equals(robotsTxtUrl)) {
-                    if (!URLCanonicalizer.getCanonicalURL(uri).equals(robotsTxtUrl)) {
-                        fetchResult.setFetchedUrl(uri);
-                    }
-                }
 
                 // Checking maximum size
                 if (fetchResult.getEntity() != null) {

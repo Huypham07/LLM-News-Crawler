@@ -1,7 +1,6 @@
-package com.vdt.crawler.fetcher_service.config;
+package com.vdt.crawler.llm_parsing_service.config;
 
-import com.vdt.crawler.fetcher_service.model.RetryUrlMessage;
-import com.vdt.crawler.fetcher_service.service.FetcherService;
+import com.vdt.crawler.llm_parsing_service.model.Content;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -15,6 +14,7 @@ import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.config.TopicBuilder;
 import org.springframework.kafka.core.*;
 import org.springframework.kafka.listener.ContainerProperties;
+import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
@@ -29,10 +29,11 @@ public class KafkaConfig {
     @Value("${spring.kafka.bootstrap-servers:localhost:9092}")
     private String bootstrapServers;
 
-    private final String fetchingGroupId = "fetching_group";
+    private final String parsingGroup = "parsing_group";
+    private final String homeParsingGroup = "home_parsing_group";
 
     @Bean
-    public ProducerFactory<String, String> parsingproducerFactory() {
+    public ProducerFactory<String, String> newUrlProducerFactory() {
         Map<String, Object> configProps = new HashMap<>();
         configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
@@ -42,19 +43,17 @@ public class KafkaConfig {
         configProps.put(ProducerConfig.BATCH_SIZE_CONFIG, 16384);
         configProps.put(ProducerConfig.LINGER_MS_CONFIG, 5);
         configProps.put(ProducerConfig.BUFFER_MEMORY_CONFIG, 33554432);
-        configProps.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "zstd");
 
         return new DefaultKafkaProducerFactory<>(configProps);
     }
 
     @Bean
-    public KafkaTemplate<String, String> parsingKafkaTemplate() {
-        return new KafkaTemplate<>(parsingproducerFactory());
+    public KafkaTemplate<String, String> newUrlParsingKafkaTemplate() {
+        return new KafkaTemplate<>(newUrlProducerFactory());
     }
 
-
     @Bean
-    public ProducerFactory<String, RetryUrlMessage> retryMessageProducerFactory() {
+    public ProducerFactory<String, Content> contentProducerFactory() {
         Map<String, Object> configProps = new HashMap<>();
         configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
@@ -70,16 +69,15 @@ public class KafkaConfig {
     }
 
     @Bean
-    public KafkaTemplate<String, RetryUrlMessage> retryKafkaTemplate() {
-        return new KafkaTemplate<>(retryMessageProducerFactory());
+    public KafkaTemplate<String, Content> contentKafkaTemplate() {
+        return new KafkaTemplate<>(contentProducerFactory());
     }
 
-
     @Bean
-    public ConsumerFactory<String, String> consumerFactory() {
+    public ConsumerFactory<String, String> parsingConsumerFactory() {
         Map<String, Object> props = new HashMap<>();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        props.put(ConsumerConfig.GROUP_ID_CONFIG, fetchingGroupId);
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, parsingGroup);
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
@@ -91,11 +89,11 @@ public class KafkaConfig {
         return new DefaultKafkaConsumerFactory<>(props);
     }
 
-    @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory() {
+    @Bean(name = "parsingListenerContainerFactory")
+    public ConcurrentKafkaListenerContainerFactory<String, String> parsingListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, String> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(consumerFactory());
+        factory.setConsumerFactory(parsingConsumerFactory());
 
         // Enable manual acknowledgment
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
@@ -107,25 +105,48 @@ public class KafkaConfig {
     }
 
     @Bean
-    public NewTopic parsingTasksTopic() {
-        return TopicBuilder.name("parsing_tasks")
+    public ConsumerFactory<String, String> homeParsingConsumerFactory() {
+        Map<String, Object> props = new HashMap<>();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, homeParsingGroup);
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+        props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 100);
+        props.put(ConsumerConfig.FETCH_MIN_BYTES_CONFIG, 1024);
+        props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 500);
+
+        return new DefaultKafkaConsumerFactory<>(props);
+    }
+
+    @Bean(name = "homeParsingListenerContainerFactory")
+    public ConcurrentKafkaListenerContainerFactory<String, String> homeParsingListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, String> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(homeParsingConsumerFactory());
+
+        // Enable manual acknowledgment
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+
+        // Error handling
+        factory.setCommonErrorHandler(new org.springframework.kafka.listener.DefaultErrorHandler());
+
+        return factory;
+    }
+
+    @Bean
+    public NewTopic newUrlTasksTopic() {
+        return TopicBuilder.name("new_url_tasks")
                 .partitions(10)
                 .replicas(1)
                 .build();
     }
 
     @Bean
-    public NewTopic homeParsingTasksTopic() {
-        return TopicBuilder.name("home_parsing_tasks")
+    public NewTopic storingTasksTopic() {
+        return TopicBuilder.name("storing_tasks")
                 .partitions(10)
-                .replicas(1)
-                .build();
-    }
-
-    @Bean
-    public NewTopic retryUrlTopic() {
-        return TopicBuilder.name("retry_url_tasks")
-                .partitions(6)
                 .replicas(1)
                 .build();
     }

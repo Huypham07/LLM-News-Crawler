@@ -1,9 +1,39 @@
-spring:
-  application:
-    name: content-store-service
-
 server:
   port: 8094
   error:
     whitelabel:
       enabled: false
+
+spring:
+  application:
+    name: content-store-service
+
+  # kafka
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+  # Database
+  data:
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb://root:root@localhost:27017/crawlerdb?authSource=admin}
+
+# Logging Configuration
+logging:
+  level:
+    com.vdt.crawler.content_store_service: DEBUG
+    org.springframework.kafka: INFO
+    org.apache.kafka: WARN
+    org.springframework.data.mongodb: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/content-store-service.log
+  logback:
+    rollingpolicy:
+      max-file-size: 100MB
+      max-history: 30
+
+springdoc:
+  swagger-ui:
+    path: /api/docs

@@ -28,8 +28,8 @@ public class KafkaConfig {
     @Value("${spring.kafka.bootstrap-servers:localhost:9092}")
     private String bootstrapServers;
 
-    @Value("${spring.kafka.consumer.group-id:frontier-service}")
-    private String groupId;
+    private final String newUrlGroupId = "new_url_group";
+    private final String retryUrlGroupId = "retry_url_group";
 
     @Bean
     public ProducerFactory<String, String> producerFactory() {
@@ -52,10 +52,10 @@ public class KafkaConfig {
     }
 
     @Bean
-    public ConsumerFactory<String, String> consumerFactory() {
+    public ConsumerFactory<String, String> newUrlConsumerFactory() {
         Map<String, Object> props = new HashMap<>();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, newUrlGroupId);
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
@@ -67,11 +67,11 @@ public class KafkaConfig {
         return new DefaultKafkaConsumerFactory<>(props);
     }
 
-    @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory() {
+    @Bean(name = "newUrlListenerContainerFactory")
+    public ConcurrentKafkaListenerContainerFactory<String, String> newUrlListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, String> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(consumerFactory());
+        factory.setConsumerFactory(newUrlConsumerFactory());
 
         // Enable manual acknowledgment
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
@@ -93,7 +93,7 @@ public class KafkaConfig {
         props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 100);
         props.put(ConsumerConfig.FETCH_MIN_BYTES_CONFIG, 1024);
         props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 500);
-        props.put(ConsumerConfig.GROUP_ID_CONFIG, "retry-group");
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, retryUrlGroupId);
         JsonDeserializer<RetryUrlMessage> deserializer = new JsonDeserializer<>(RetryUrlMessage.class);
         deserializer.addTrustedPackages("*");
         deserializer.setUseTypeMapperForKey(false);
@@ -101,8 +101,8 @@ public class KafkaConfig {
         return new DefaultKafkaConsumerFactory<>(props, new StringDeserializer(), deserializer);
     }
 
-    @Bean(name = "retryKafkaListenerContainerFactory")
-    public ConcurrentKafkaListenerContainerFactory<String, RetryUrlMessage> retryKafkaListenerContainerFactory() {
+    @Bean(name = "retryListenerContainerFactory")
+    public ConcurrentKafkaListenerContainerFactory<String, RetryUrlMessage> retryListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, RetryUrlMessage> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(retryConsumerFactory());
 
@@ -117,7 +117,7 @@ public class KafkaConfig {
 
 
     @Bean
-    public NewTopic crawlerTasksTopic() {
+    public NewTopic fetchingTasksTopic() {
         return TopicBuilder.name("fetching_tasks")
                 .partitions(10)
                 .replicas(1)

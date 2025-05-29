@@ -22,7 +22,6 @@ public class PageFetchResult {
     private HttpEntity entity = null;
     private Header[] responseHeaders = null;
     private String fetchedUrl = null;
-    private String movedToUrl = null;
 
     private byte[] contentData;
     private String contentType;
@@ -128,14 +127,6 @@ public class PageFetchResult {
         } catch (RuntimeException e) {
             logger.warn("Unexpected error occurred while trying to discard content", e);
         }
-    }
-
-    public String getMovedToUrl() {
-        return movedToUrl;
-    }
-
-    public void setMovedToUrl(String movedToUrl) {
-        this.movedToUrl = movedToUrl;
     }
 
     public int getStatusCode() {

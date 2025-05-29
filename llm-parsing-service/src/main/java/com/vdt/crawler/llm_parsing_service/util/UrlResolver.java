@@ -14,7 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.vdt.crawler.frontier_service.utils;
+
+package com.vdt.crawler.llm_parsing_service.util;
+
+import java.net.MalformedURLException;
+import java.net.URL;
 
 public final class UrlResolver {
 
@@ -269,7 +273,17 @@ public final class UrlResolver {
         //      b) If the embedded URL starts with a scheme name, it is
         //         interpreted as an absolute URL and we are done.
         if (url.scheme != null) {
-            return url;
+            try {
+                URL base = new URL(baseUrl.toString());
+                URL relative = new URL(relativeUrl);
+                if (base.getProtocol().equals(relative.getProtocol()) && base.getHost().equals(relative.getHost())) {
+                    return url;
+                } else {
+                    return baseUrl;
+                }
+            } catch (MalformedURLException e) {
+                return baseUrl;
+            }
         }
         //      c) Otherwise, the embedded URL inherits the scheme of
         //         the base URL.
@@ -332,7 +346,7 @@ public final class UrlResolver {
 
         while ((pathSegmentIndex = path.indexOf("/./")) >= 0) {
             path = path.substring(0, pathSegmentIndex + 1)
-                    .concat(path.substring(pathSegmentIndex + 3));
+                       .concat(path.substring(pathSegmentIndex + 3));
         }
         //      b) If the path ends with "." as a complete path segment,
         //         that "." is removed.
@@ -353,7 +367,7 @@ public final class UrlResolver {
             }
             if (!"..".equals(pathSegment.substring(slashIndex))) {
                 path =
-                        path.substring(0, slashIndex + 1).concat(path.substring(pathSegmentIndex + 4));
+                    path.substring(0, slashIndex + 1).concat(path.substring(pathSegmentIndex + 4));
             }
         }
         //      d) If the path ends with "<segment>/..", where <segment> is a

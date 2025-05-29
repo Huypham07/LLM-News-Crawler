@@ -9,11 +9,12 @@ import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
+
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-@Component
+@Service
 public class FetcherConsumer {
     private static final Logger logger = LoggerFactory.getLogger(FetcherConsumer.class);
 
@@ -31,7 +32,7 @@ public class FetcherConsumer {
      */
     @KafkaListener(
             topics = "fetching_tasks",
-            groupId = "fetcher-service",
+            groupId = "fetching_group",
             concurrency = "5"
     )
     public void handleCrawlerTask(
@@ -59,6 +60,7 @@ public class FetcherConsumer {
                 fetcherService.processUrl(url);
             } catch (Exception e) {
                 logger.error("Error fetching URL {}: {}", url, e.getMessage());
+                e.printStackTrace();
             }
         });
     }

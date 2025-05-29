@@ -1,6 +1,6 @@
-package com.vdt.crawler.fetcher_service.model;
+package com.vdt.crawler.llm_parsing_service.model;
 
-
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -10,29 +10,27 @@ import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.Instant;
-import java.util.List;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Domain {
+public class Content {
     @Id
     private String id;
 
     @Indexed(unique = true)
-    private String domain;
+    private String url;
 
-    @Field("seed_urls")
-    private List<String> seedUrls;
+    @NotNull
+    @Field("content_title")
+    private String contentTitle;
 
-    @Field("last_crawled")
-    private Instant lastCrawled;
+    @NotNull
+    private String content;
 
-    @Field("create_at")
-    private Instant createAt;
+    private String author;
 
-    private int priority;
-
-    private boolean active = true;
+    @Field("publish_at")
+    private Instant lastAttempt;
 }

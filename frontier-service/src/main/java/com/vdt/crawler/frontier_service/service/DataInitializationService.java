@@ -7,29 +7,40 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Component
+@Service
 public class DataInitializationService implements CommandLineRunner {
     private static final Logger logger = LoggerFactory.getLogger(DataInitializationService.class);
 
     private final DomainRepository domainRepository;
     private final SchedulerConfig config;
+    private final FrontierService frontierService;
 
     @Autowired
-    public DataInitializationService(DomainRepository domainRepository, SchedulerConfig config) {
+    public DataInitializationService(DomainRepository domainRepository, SchedulerConfig config, FrontierService frontierService) {
         this.domainRepository = domainRepository;
+        this.frontierService = frontierService;
         this.config = config;
     }
 
+    private List<String> configuredDomains;
+    private List<String> existingDomains;
+
     @Override
     public void run(String... args) {
-        List<String> configuredDomains = config.getDomains();
+        initDomain();
+
+        startGettingInitialSeedUrls();
+    }
+
+    private void initDomain() {
+        configuredDomains = config.getDomains();
 
         if (configuredDomains == null || configuredDomains.isEmpty()) {
             logger.warn("No domains configured in application.yml");
@@ -37,7 +48,7 @@ public class DataInitializationService implements CommandLineRunner {
         }
 
         // get all domains in DB
-        List<String> existingDomains = domainRepository.findAll()
+        existingDomains = domainRepository.findAll()
                 .stream()
                 .map(Domain::getDomain)
                 .toList();
@@ -56,6 +67,13 @@ public class DataInitializationService implements CommandLineRunner {
             logger.info("Added {} domain(s)", newDomains.size());
         } else {
             logger.info("All configured domains already exist in the database.");
+        }
+    }
+
+    private void startGettingInitialSeedUrls() {
+        for (String domain : existingDomains) {
+            String url = "https://" + domain;
+            frontierService.addToFrontier(url);
         }
     }
 

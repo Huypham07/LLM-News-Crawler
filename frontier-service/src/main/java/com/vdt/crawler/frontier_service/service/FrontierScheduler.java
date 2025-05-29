@@ -5,13 +5,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-@Component
+@Service
 public class FrontierScheduler {
 
     private static final Logger logger = LoggerFactory.getLogger(FrontierScheduler.class);
@@ -77,8 +77,8 @@ public class FrontierScheduler {
     }
 
     /**
-     * Scheduled task to send URLs to crawlers
-     * Runs every 2 seconds
+     * Scheduled task to move URLs from retry set to front queue
+     * Runs every 5mins
      */
     @Scheduled(fixedDelay = 300000)
     public void retryUrlScheduler() {

@@ -32,7 +32,7 @@ public class RobotstxtConfig {
      * user-agent name that will be used to determine whether some servers have
      * specific rules for this agent name.
      */
-    private String userAgentName = "crawler4j";
+    private String userAgentName = "llm-news-crawler";
 
     /**
      * Whether to ignore positive user-agent discrimination. There are websties that use
