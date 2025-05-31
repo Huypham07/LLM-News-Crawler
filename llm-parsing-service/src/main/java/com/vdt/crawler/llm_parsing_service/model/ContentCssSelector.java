@@ -1,5 +1,6 @@
-package com.vdt.crawler.frontier_service.model;
+package com.vdt.crawler.llm_parsing_service.model;
 
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -9,32 +10,27 @@ import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
-import java.time.Instant;
-import java.util.List;
-
-@Document(collection = "domains")
+@Document(collection = "content_css_selector")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Domain {
+public class ContentCssSelector {
     @Id
     private String id;
 
+    @NotNull
     @Indexed(unique = true)
     private String domain;
 
-    @Field("seed_urls")
-    private List<String> seedUrls;
+    @NotNull
+    private String title;
 
-    @Field("last_crawled")
-    private Instant lastCrawled;
+    @NotNull
+    private String content;
 
-    @Field("create_at")
-    private Instant createAt;
+    private String author;
 
-    private int priority;
-
-    @Builder.Default
-    private boolean active = true;
+    @Field("publish_at")
+    private String publishAt;
 }

@@ -1,23 +1,28 @@
 package com.vdt.crawler.llm_parsing_service.service;
 
+import com.vdt.crawler.llm_parsing_service.exception.ContentParsingExcetion;
 import com.vdt.crawler.llm_parsing_service.model.Content;
+import com.vdt.crawler.llm_parsing_service.util.UrlUtil;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
-
 @Service
 public class ContentExtractor implements Parsing{
     private final Logger logger = LoggerFactory.getLogger(ContentExtractor.class);
     private final KafkaTemplate<String, Content> contentKafkaTemplate;
+    private final UrlFilter urlFilter;
+    private final LLMParsing llmParsing;
 
     @Autowired
-    public ContentExtractor(KafkaTemplate<String, Content> contentKafkaTemplate) {
+    public ContentExtractor(KafkaTemplate<String, Content> contentKafkaTemplate, UrlFilter urlFilter, LLMParsing llmParsing) {
         this.contentKafkaTemplate = contentKafkaTemplate;
+        this.urlFilter = urlFilter;
+        this.llmParsing = llmParsing;
     }
 
     @Override
@@ -28,16 +33,36 @@ public class ContentExtractor implements Parsing{
 
     public void doAfterParse(Content result) {
         if (result == null) {
-            logger.info("Not an article url, skip scraping content");
             return;
         }
-        contentKafkaTemplate.send("", result);
-        logger.debug("Sent content: {} to Content Storage", result);
+        contentKafkaTemplate.send("storing_tasks", result);
+        logger.info("Sent content: {} to Content Storage", result);
     }
 
     private Content getParsingResult(String rawHtml) {
-        Content result = null;
+        try {
+            Content result = null;
+            Document doc = Jsoup.parse(rawHtml);
 
-        return result;
+            String url = UrlUtil.extractCurrentUrl(doc);
+
+            if (urlFilter.isLikelyArticleByUrl(url)) {
+                logger.info(">>> Likely article url, parse: {}", url);
+                result = llmParsing.getParsingContent(doc, url);
+            } else {
+                logger.warn(">>> Not likely article url, extract urls only: {}", url);
+            }
+
+            return result;
+        }
+        catch (ContentParsingExcetion e) {
+            logger.error(e.getMessage());
+            // TODO do something with url which parsing error by wrong config
+            return null;
+        }
+        catch (Exception e) {
+            logger.error("Error parsing HTML for URLs: {}", e.getMessage(), e);
+            return null;
+        }
     }
 }

@@ -35,5 +35,6 @@ public class Domain {
 
     private int priority;
 
+    @Builder.Default
     private boolean active = true;
 }

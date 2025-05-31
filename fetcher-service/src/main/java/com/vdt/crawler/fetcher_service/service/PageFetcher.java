@@ -23,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.URL;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -110,7 +111,15 @@ public class PageFetcher {
                 if (header != null) {
                     String movedToUrl =
                             URLCanonicalizer.getCanonicalURL(header.getValue(), url);
-                    fetchResult.setMovedToUrl(movedToUrl);
+                    /*
+                    Note Domain have subdomain eg: tuoitre.vn, cuoi.tuoitre.vn, cuoituan.tuoitre.vn
+                    But here I want url and redirect url on 1 Site
+                    */
+                    URL curUrl = new URL(url);
+                    URL redirUrl = new URL(movedToUrl);
+                    if (curUrl.getHost().equals(redirUrl.getHost())) {
+                        fetchResult.setMovedToUrl(movedToUrl);
+                    }
                 }
             } else if (statusCode >= 200 && statusCode <= 299) { // is 2XX, everything looks ok
                 fetchResult.setFetchedUrl(url);

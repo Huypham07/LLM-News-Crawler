@@ -2,6 +2,7 @@ package com.vdt.crawler.llm_parsing_service.service;
 
 import com.vdt.crawler.llm_parsing_service.model.URLMetaData;
 import com.vdt.crawler.llm_parsing_service.repository.URLRepository;
+import org.jsoup.nodes.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +13,7 @@ import com.vdt.crawler.llm_parsing_service.util.UrlHashUtil;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -42,21 +44,25 @@ public class UrlFilter {
                 }
             }
 
-//            if (isArticle(url)) {
-//                return status == null || status != 200; // dont crawl again
-//            }
+            if (status == null || urlMetaData == null) {
+                logger.info("Url not crawl before {}", url);
+                return true;
+            }
 
-            if (urlMetaData != null && urlMetaData.getStatusCode() != 200 && urlMetaData.getRetryCount() > 3) {
+            if (status != 200 && urlMetaData.getRetryCount() > 3) {
                 // < 5mins
                 return Instant.now().toEpochMilli() - urlMetaData.getLastAttempt().toEpochMilli() >= 5 * 60 * 1000;
             }
 
+            return !isLikelyArticleByUrl(url);
             // if have any strategy to determine which url is article, will not re-crawl artile if status = ok,
-            return true;
         } catch (MalformedURLException e) {
             logger.error(e.getMessage());
             return false;
         }
+    }
 
+    public boolean isLikelyArticleByUrl(String url) {
+        return !Parsing.EXCLUDE_PATTERN.matcher(url).matches() && !Parsing.FILE_EXTENSION_PATTERN.matcher(url).matches() && Parsing.ARTICLE_URL_PATTERN.matcher(url).matches();
     }
 }

@@ -17,6 +17,15 @@ spring:
     mongodb:
       uri: ${SPRING_DATA_MONGODB_URI:mongodb://root:root@localhost:27017/crawlerdb?authSource=admin}
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: prometheus
+  endpoint:
+    prometheus:
+      access: read_only
+
 # Logging Configuration
 logging:
   level:

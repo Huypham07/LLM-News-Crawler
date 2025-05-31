@@ -9,8 +9,8 @@ services:
     ports:
       - "27017:27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: root
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=root
     volumes:
       - mongo_data:/data/db
     networks:
@@ -23,14 +23,15 @@ services:
 
   mongo-express:
     image: mongo-express
+    container_name: mongo-express
     restart: unless-stopped
     ports:
       - 8081:8081
     environment:
-      ME_CONFIG_MONGODB_ADMINUSERNAME: root
-      ME_CONFIG_MONGODB_ADMINPASSWORD: root
-      ME_CONFIG_MONGODB_SERVER: mongo
-      ME_CONFIG_BASICAUTH: false
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=root
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=root
+      - ME_CONFIG_MONGODB_SERVER=mongo
+      - ME_CONFIG_BASICAUTH=false
     depends_on:
       - mongo
     networks:
@@ -63,8 +64,8 @@ services:
     container_name: zookeeper
     restart: unless-stopped
     environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
+      - ZOOKEEPER_CLIENT_PORT=2181
+      - ZOOKEEPER_TICK_TIME=2000
     volumes:
       - zookeeper_data:/var/lib/zookeeper/data
       - zookeeper_logs:/var/lib/zookeeper/log
@@ -86,17 +87,17 @@ services:
       - "9092:9092"
       - "9093:9093"
     environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-      KAFKA_JMX_PORT: 9093
-      KAFKA_JMX_OPTS: -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=kafka -Dcom.sun.management.jmxremote.rmi.port=9093
+      - KAFKA_BROKER_ID=1
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
+      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+      - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
+      - KAFKA_JMX_PORT=9093
+      - KAFKA_JMX_OPTS=-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=kafka -Dcom.sun.management.jmxremote.rmi.port=9093
     volumes:
       - kafka_data:/var/lib/kafka/data
     networks:
@@ -121,9 +122,47 @@ services:
     ports:
       - "8080:8080"
     environment:
-      KAFKA_CLUSTERS_0_NAME: local
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
-      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:29092
+      - KAFKA_CLUSTERS_0_ZOOKEEPER=zookeeper:2181
+    networks:
+      - crawler-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # Prometheus
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - crawler-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # Grafana
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    links:
+      - prometheus:prometheus
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
     networks:
       - crawler-network
     deploy:
@@ -141,10 +180,10 @@ services:
     ports:
       - "8091:8091"
     environment:
-      SPRING_PROFILES_ACTIVE: dev
-      SPRING_DATA_MONGODB_URI: mongodb://root:root@mongo:27017/crawlerdb?authSource=admin
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      JAVA_OPTS: "-Xmx1g -Xms512m"
+      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_DATA_MONGODB_URI=mongodb://root:root@mongo:27017/crawlerdb?authSource=admin
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - JAVA_OPTS="-Xmx1g -Xms512m"
     depends_on:
       mongo:
         condition: service_started
@@ -154,6 +193,10 @@ services:
       - ./frontier-service/logs:/app/logs
     networks:
       - crawler-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   # Fetcher Service
   fetcher-service:
@@ -165,13 +208,13 @@ services:
     ports:
       - "8092:8092"
     environment:
-      SPRING_PROFILES_ACTIVE: dev
-      SPRING_DATA_MONGODB_URI: mongodb://root:root@mongo:27017/crawlerdb?authSource=admin
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      JAVA_OPTS: "-Xmx1g -Xms512m"
-      REDIS_HOST: redis
-      REDIS_PASSWORD: root
-      FRONTIER_CONTAINER_HOSTNAME: frontier-service
+      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_DATA_MONGODB_URI=mongodb://root:root@mongo:27017/crawlerdb?authSource=admin
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - JAVA_OPTS="-Xmx1g -Xms512m"
+      - REDIS_HOST=redis
+      - REDIS_PASSWORD=root
+      - FRONTIER_CONTAINER_HOSTNAME=frontier-service
     depends_on:
       mongo:
         condition: service_started
@@ -183,6 +226,10 @@ services:
       - ./fetcher-service/logs:/app/logs
     networks:
       - crawler-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   # LLM Parsing Service
   llm-parsing-service:
@@ -193,14 +240,17 @@ services:
     restart: unless-stopped
     ports:
       - "8093:8093"
+    env_file:
+      - ./llm-parsing-service/.env
     environment:
-      SPRING_PROFILES_ACTIVE: dev
-      SPRING_DATA_MONGODB_URI: mongodb://root:root@mongo:27017/crawlerdb?authSource=admin
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      JAVA_OPTS: "-Xmx1g -Xms512m"
-      REDIS_HOST: redis
-      REDIS_PASSWORD: root
-      FRONTIER_CONTAINER_HOSTNAME: frontier-service
+      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_DATA_MONGODB_URI=mongodb://root:root@mongo:27017/crawlerdb?authSource=admin
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - JAVA_OPTS="-Xmx1g -Xms512m"
+      - REDIS_HOST=redis
+      - REDIS_PASSWORD=root
+      - FRONTIER_CONTAINER_HOSTNAME=frontier-service
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
     depends_on:
       mongo:
         condition: service_started
@@ -212,22 +262,26 @@ services:
       - ./llm-parsing-service/logs:/app/logs
     networks:
       - crawler-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
 
 
   # Content Storing Service
-  content-storing-service:
+  content-store-service:
     build:
       context: ./content-store-service
       dockerfile: Dockerfile
     container_name: content-store-service
     restart: unless-stopped
     ports:
-      - "8093:8093"
+      - "8094:8094"
     environment:
-      SPRING_PROFILES_ACTIVE: dev
-      SPRING_DATA_MONGODB_URI: mongodb://root:root@mongo:27017/crawlerdb?authSource=admin
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      JAVA_OPTS: "-Xmx1g -Xms512m"
+      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_DATA_MONGODB_URI=mongodb://root:root@mongo:27017/crawlerdb?authSource=admin
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - JAVA_OPTS="-Xmx1g -Xms512m"
     depends_on:
       mongo:
         condition: service_started
@@ -237,6 +291,10 @@ services:
       - ./content-store-service/logs:/app/logs
     networks:
       - crawler-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
 volumes:
   mongo_data:
@@ -244,6 +302,8 @@ volumes:
   zookeeper_data:
   zookeeper_logs:
   kafka_data:
+  prometheus_data:
+  grafana_data:
 
 networks:
   crawler-network:

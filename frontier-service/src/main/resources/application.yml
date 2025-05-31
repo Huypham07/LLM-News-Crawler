@@ -30,14 +30,10 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus
+        include: prometheus
   endpoint:
-    health:
-      show-details: always
-  metrics:
-    export:
-      prometheus:
-        enabled: true
+    prometheus:
+      access: read_only
 
 
 server:

@@ -1,6 +1,7 @@
 package com.vdt.crawler.llm_parsing_service.service;
 
 import com.vdt.crawler.llm_parsing_service.model.Domain;
+import com.vdt.crawler.llm_parsing_service.util.UrlUtil;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -79,7 +80,7 @@ public class SitemapExtractor implements Parsing{
 
         try {
             Document doc = Jsoup.parse(rawHtml);
-            String baseUrl = extractBaseUrl(doc);
+            String baseUrl = UrlUtil.extractCurrentUrl(doc);
 
             if (baseUrl == null) {
                 logger.warn("Cannot determine base URL from HTML content");
@@ -109,32 +110,42 @@ public class SitemapExtractor implements Parsing{
         return result;
     }
 
-    private String extractBaseUrl(Document doc) {
-        // get from canonnical URL
-        Element canonical = doc.selectFirst("link[rel=canonical]");
-        if (canonical != null) {
-            String canonicalUrl = canonical.attr("href");
-            logger.debug(">>> debug--canonical-{}", canonicalUrl);
-            return canonicalUrl;
+    public List<String> getParsingResult(Document doc) {
+        List<String> result = new ArrayList<>();
+        Set<String> uniqueUrls = new LinkedHashSet<>();
+
+        try {
+            String baseUrl = UrlUtil.extractCurrentUrl(doc);
+
+            if (baseUrl == null) {
+                logger.warn("Cannot determine base URL from HTML content");
+                return result;
+            }
+
+            uniqueUrls.add(normalizeUrl(baseUrl));
+
+            // extract nav element
+            extractFromNavigationElements(doc, baseUrl, uniqueUrls);
+            // extract header area
+            extractFromHeaderArea(doc, baseUrl, uniqueUrls);
+            // extract prominent links
+//            extractProminentLinks(doc, baseUrl, uniqueUrls);
+            // extract category links
+//            extractCategoryAndBreadcrumbLinks(doc, baseUrl, uniqueUrls);
+            // extract content
+//            extractFromMainContentAreas(doc, baseUrl, uniqueUrls);
+
+            result.addAll(uniqueUrls);
+
+            logger.info("Extract {} navigation URLs from HTML content", result.size());
+        } catch (Exception e) {
+            logger.error("Failed to extract navigation URLs from HTML content: {}", e.getMessage(), e);
         }
 
-        // get from open graph URL
-        Element og = doc.selectFirst("meta[property=og:url]");
-        if (og != null) {
-            String ogUrl = og.attr("content");
-            logger.debug(">>> debug--og-{}", ogUrl);
-            return ogUrl;
-        }
-
-        // base tag
-        Element base = doc.selectFirst("base[href]");
-        if (base != null) {
-            String baseUrl = base.attr("href");
-            logger.debug(">>> debug--base-{}", baseUrl);
-        }
-
-        return null;
+        return result;
     }
+
+
 
     private void extractFromNavigationElements(Document doc, String baseUrl, Set<String> urls) {
         for (String selector: NAV_SELECTORS) {

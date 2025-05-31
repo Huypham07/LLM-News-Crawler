@@ -58,11 +58,13 @@ public class UrlExtractor implements Parsing{
 
     private List<String> getParsingResult(String rawHtml) {
         try {
-            List<String> sitemapUrls = sitemapExtractor.getParsingResult(rawHtml);
+            Document doc = Jsoup.parse(rawHtml);
+
+            List<String> sitemapUrls = sitemapExtractor.getParsingResult(doc);
             Set<String> sitemapUrlSet = new HashSet<>(sitemapUrls);
 
             // Extract all URLs from HTML
-            Set<String> allUrls = extractUrlsFromHtml(rawHtml);
+            Set<String> allUrls = extractUrlsFromHtml(doc);
             logger.debug("Found {} total URLs in HTML", allUrls.size());
 
             List<String> filteredUrls = allUrls.stream()
@@ -83,11 +85,10 @@ public class UrlExtractor implements Parsing{
     /**
      * Extract all URLs from HTML content using multiple methods
      */
-    private Set<String> extractUrlsFromHtml(String rawHtml) {
+    private Set<String> extractUrlsFromHtml(Document doc) {
         Set<String> urls = new HashSet<>();
 
         try {
-            Document doc = Jsoup.parse(rawHtml);
             String baseUrl = extractBaseUrl(doc);
 
             if (baseUrl == null) {
@@ -121,7 +122,7 @@ public class UrlExtractor implements Parsing{
         Element canonical = doc.selectFirst("link[rel=canonical]");
         if (canonical != null) {
             String canonicalUrl = canonical.attr("href");
-            logger.debug(">>> canonical-url{}", canonicalUrl);
+            logger.debug(">>> canonical-url: {}", canonicalUrl);
             return canonicalUrl;
         }
 
@@ -129,7 +130,7 @@ public class UrlExtractor implements Parsing{
         Element og = doc.selectFirst("meta[property=og:url]");
         if (og != null) {
             String ogUrl = og.attr("content");
-            logger.debug(">>> og-url{}", ogUrl);
+            logger.debug(">>> og-url: {}", ogUrl);
             return ogUrl;
         }
 
@@ -137,7 +138,7 @@ public class UrlExtractor implements Parsing{
         Element base = doc.selectFirst("base[href]");
         if (base != null) {
             String baseUrl = base.attr("href");
-            logger.debug(">>> base-url{}", baseUrl);
+            logger.debug(">>> base-url: {}", baseUrl);
         }
 
         return null;

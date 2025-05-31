@@ -30,6 +30,15 @@ spring:
           min-idle: 0
       password: ${REDIS_PASSWORD:root}
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: prometheus
+  endpoint:
+    prometheus:
+      access: read_only
+
 # Logging Configuration
 logging:
   level:
@@ -42,10 +51,10 @@ logging:
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
   file:
     name: logs/llm-parsing-service.log
-  logback:
-    rollingpolicy:
-      max-file-size: 100MB
-      max-history: 30
+#  logback:
+#    rollingpolicy:
+#      max-file-size: 100MB
+#      max-history: 30
 
 springdoc:
   swagger-ui:
@@ -53,3 +62,6 @@ springdoc:
 
 parsing-service:
   frontier-hostname: ${FRONTIER_CONTAINER_HOSTNAME:localhost}
+
+gemini:
+  api-key: ${GOOGLE_API_KEY:}

@@ -23,8 +23,7 @@ public class Content {
     private String url;
 
     @NotNull
-    @Field("content_title")
-    private String contentTitle;
+    private String title;
 
     @NotNull
     private String content;
@@ -32,5 +31,5 @@ public class Content {
     private String author;
 
     @Field("publish_at")
-    private Instant lastAttempt;
+    private Instant publishAt;
 }
