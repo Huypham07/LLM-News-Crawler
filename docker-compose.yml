@@ -170,6 +170,59 @@ services:
         limits:
           memory: 512M
 
+  # Elasticsearch
+  elasticsearch:
+    image: quantran/elasticsearch-vietnamese:8.7.0
+    container_name: elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+      - ELASTIC_USERNAME=root
+      - ELASTIC_PASSWORD=root
+      - xpack.security.enabled=false
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+      memlock:
+        hard: -1
+        soft: -1
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    networks:
+      - crawler-network
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+
+  # Kibana
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.7.0
+    container_name: kibana
+    restart: unless-stopped
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - ELASTICSEARCH_HOSTS=["http://elasticsearch:9200"]
+      - ELASTICSEARCH_USERNAME=root
+      - ELASTICSEARCH_PASSWORD=root
+      - xpack.security.enabled=false
+    networks:
+      - crawler-network
+    depends_on:
+      - elasticsearch
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
   # Frontier Service
   frontier-service:
     build:
@@ -279,8 +332,12 @@ services:
       - "8094:8094"
     environment:
       - SPRING_PROFILES_ACTIVE=dev
-      - SPRING_DATA_MONGODB_URI=mongodb://root:root@mongo:27017/crawlerdb?authSource=admin
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - ELASTICSEARCH_HOST=elasticsearch
+      - ELASTICSEARCH_PORT=9200
+      - ELASTICSEARCH_URI=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=root
+      - ELASTICSEARCH_PASSWORD=root
       - JAVA_OPTS="-Xmx1g -Xms512m"
     depends_on:
       mongo:
@@ -304,6 +361,7 @@ volumes:
   kafka_data:
   prometheus_data:
   grafana_data:
+  elasticsearch_data:
 
 networks:
   crawler-network:

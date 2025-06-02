@@ -1,0 +1,21 @@
+{
+  "analysis": {
+    "analyzer": {
+      "vi_analyzer": {
+        "type": "custom",
+        "tokenizer": "vi_tokenizer",
+        "filter": [
+          "lowercase",
+          "asciifolding"
+        ]
+      }
+    },
+    "tokenizer": {
+      "vi_tokenizer": {
+        "type": "vi_tokenizer"
+      }
+    }
+  },
+  "number_of_shards": 1,
+  "number_of_replicas": 0
+}

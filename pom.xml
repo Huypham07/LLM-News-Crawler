@@ -13,7 +13,6 @@
         <module>fetcher-service</module>
         <module>llm-parsing-service</module>
         <module>content-store-service</module>
-        <module>search-engine</module>
     </modules>
 
     <properties>

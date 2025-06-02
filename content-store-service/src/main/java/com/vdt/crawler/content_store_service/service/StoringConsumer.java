@@ -33,7 +33,8 @@ public class StoringConsumer {
     @KafkaListener(
             topics = "storing_tasks",
             groupId = "storing_group",
-            concurrency = "5"
+            concurrency = "5",
+            containerFactory = "parsingListenerContainerFactory"
     )
     public void handleStoringTask(
             @Payload Content message,

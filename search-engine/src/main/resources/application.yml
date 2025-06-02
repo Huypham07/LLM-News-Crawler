@@ -1,9 +1,0 @@
-spring:
-  application:
-    name: search-engine-service
-
-server:
-  port: 8095
-  error:
-    whitelabel:
-      enabled: false

@@ -12,10 +12,16 @@ spring:
   kafka:
     bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
 
-  # Database
-  data:
-    mongodb:
-      uri: ${SPRING_DATA_MONGODB_URI:mongodb://root:root@localhost:27017/crawlerdb?authSource=admin}
+  # Elasticsearch
+  elasticsearch:
+    uris: ${ELASTICSEARCH_URI:http://localhost:9200}
+    username: ${ELASTIC_USERNAME:root}
+    password:  ${ELASTIC_PASSWORD:root}
+
+elasticsearch:
+  host: ${ELASTICSEARCH_HOST:localhost}
+  port: ${ELASTICSEARCH_PORT:9200}
+
 
 management:
   endpoints:
@@ -33,6 +39,7 @@ logging:
     org.springframework.kafka: INFO
     org.apache.kafka: WARN
     org.springframework.data.mongodb: INFO
+    org.elasticsearch: INFO
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
