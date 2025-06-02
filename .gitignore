@@ -37,3 +37,6 @@ prepare
 
 ### logs
 logs
+
+# env
+.env
