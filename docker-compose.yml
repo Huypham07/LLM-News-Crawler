@@ -1,0 +1,369 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongo:
+    image: mongo
+    container_name: mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=root
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - crawler-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+
+  mongo-express:
+    image: mongo-express
+    container_name: mongo-express
+    restart: unless-stopped
+    ports:
+      - 8081:8081
+    environment:
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=root
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=root
+      - ME_CONFIG_MONGODB_SERVER=mongo
+      - ME_CONFIG_BASICAUTH=false
+    depends_on:
+      - mongo
+    networks:
+      - crawler-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    hostname: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --requirepass root
+    networks:
+      - crawler-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # Zookeeper for Kafka
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    restart: unless-stopped
+    environment:
+      - ZOOKEEPER_CLIENT_PORT=2181
+      - ZOOKEEPER_TICK_TIME=2000
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_logs:/var/lib/zookeeper/log
+    networks:
+      - crawler-network
+    deploy:
+      resources:
+        limits:
+          memory: 512MB
+
+  # Kafka Message Broker
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    restart: unless-stopped
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      - KAFKA_BROKER_ID=1
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
+      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+      - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
+      - KAFKA_JMX_PORT=9093
+      - KAFKA_JMX_OPTS=-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=kafka -Dcom.sun.management.jmxremote.rmi.port=9093
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - crawler-network
+    healthcheck:
+      test: [ "CMD", "bash", "-c", "nc -z kafka 9092" ]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  # Kafka UI for management
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    restart: unless-stopped
+    depends_on:
+      - kafka
+    ports:
+      - "8080:8080"
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:29092
+      - KAFKA_CLUSTERS_0_ZOOKEEPER=zookeeper:2181
+    networks:
+      - crawler-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # Prometheus
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - crawler-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # Grafana
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    links:
+      - prometheus:prometheus
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - crawler-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # Elasticsearch
+  elasticsearch:
+    image: quantran/elasticsearch-vietnamese:8.7.0
+    container_name: elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+      - ELASTIC_USERNAME=root
+      - ELASTIC_PASSWORD=root
+      - xpack.security.enabled=false
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+      memlock:
+        hard: -1
+        soft: -1
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    networks:
+      - crawler-network
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+
+  # Kibana
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.7.0
+    container_name: kibana
+    restart: unless-stopped
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - ELASTICSEARCH_HOSTS=["http://elasticsearch:9200"]
+      - ELASTICSEARCH_USERNAME=root
+      - ELASTICSEARCH_PASSWORD=root
+      - xpack.security.enabled=false
+    networks:
+      - crawler-network
+    depends_on:
+      - elasticsearch
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  # Frontier Service
+  frontier-service:
+    build:
+      context: ./frontier-service
+      dockerfile: Dockerfile
+    container_name: frontier-service
+    restart: unless-stopped
+    ports:
+      - "8091:8091"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_DATA_MONGODB_URI=mongodb://root:root@mongo:27017/crawlerdb?authSource=admin
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - JAVA_OPTS="-Xmx1g -Xms512m"
+    depends_on:
+      mongo:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    volumes:
+      - ./frontier-service/logs:/app/logs
+    networks:
+      - crawler-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # Fetcher Service
+  fetcher-service:
+    build:
+      context: ./fetcher-service
+      dockerfile: Dockerfile
+    container_name: fetcher-service
+    restart: unless-stopped
+    ports:
+      - "8092:8092"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_DATA_MONGODB_URI=mongodb://root:root@mongo:27017/crawlerdb?authSource=admin
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - JAVA_OPTS="-Xmx1g -Xms512m"
+      - REDIS_HOST=redis
+      - REDIS_PASSWORD=root
+      - FRONTIER_CONTAINER_HOSTNAME=frontier-service
+    depends_on:
+      mongo:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - ./fetcher-service/logs:/app/logs
+    networks:
+      - crawler-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # LLM Parsing Service
+  llm-parsing-service:
+    build:
+      context: ./llm-parsing-service
+      dockerfile: Dockerfile
+    container_name: llm-parsing-service
+    restart: unless-stopped
+    ports:
+      - "8093:8093"
+    env_file:
+      - ./llm-parsing-service/.env
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_DATA_MONGODB_URI=mongodb://root:root@mongo:27017/crawlerdb?authSource=admin
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - JAVA_OPTS="-Xmx1g -Xms512m"
+      - REDIS_HOST=redis
+      - REDIS_PASSWORD=root
+      - FRONTIER_CONTAINER_HOSTNAME=frontier-service
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+    depends_on:
+      mongo:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - ./llm-parsing-service/logs:/app/logs
+    networks:
+      - crawler-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+
+  # Content Storing Service
+  content-store-service:
+    build:
+      context: ./content-store-service
+      dockerfile: Dockerfile
+    container_name: content-store-service
+    restart: unless-stopped
+    ports:
+      - "8094:8094"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - ELASTICSEARCH_HOST=elasticsearch
+      - ELASTICSEARCH_PORT=9200
+      - ELASTICSEARCH_URI=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=root
+      - ELASTICSEARCH_PASSWORD=root
+      - JAVA_OPTS="-Xmx1g -Xms512m"
+    depends_on:
+      mongo:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    volumes:
+      - ./content-store-service/logs:/app/logs
+    networks:
+      - crawler-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+volumes:
+  mongo_data:
+  redis_data:
+  zookeeper_data:
+  zookeeper_logs:
+  kafka_data:
+  prometheus_data:
+  grafana_data:
+  elasticsearch_data:
+
+networks:
+  crawler-network:
+    driver: bridge
+    name: crawler-network

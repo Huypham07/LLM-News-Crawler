@@ -1,0 +1,56 @@
+{
+  "properties": {
+    "url": {
+      "type": "keyword"
+    },
+    "title": {
+      "type": "text",
+      "analyzer": "vi_analyzer",
+      "search_analyzer": "vi_analyzer",
+      "fields": {
+        "keyword": {
+          "type": "keyword",
+          "ignore_above": 256
+        },
+        "raw": {
+          "type": "text",
+          "analyzer": "standard"
+        }
+      }
+    },
+    "content": {
+      "type": "text",
+      "analyzer": "vi_analyzer",
+      "search_analyzer": "vi_analyzer",
+      "fields": {
+        "raw": {
+          "type": "text",
+          "analyzer": "standard"
+        }
+      }
+    },
+    "author": {
+      "type": "text",
+      "analyzer": "vi_analyzer",
+      "search_analyzer": "vi_analyzer",
+      "fields": {
+        "keyword": {
+          "type": "keyword",
+          "ignore_above": 256
+        },
+        "raw": {
+          "type": "text",
+          "analyzer": "standard"
+        }
+      }
+    },
+    "publish_at": {
+      "type": "date",
+      "format": "date_time||yyyy-MM-dd'T'HH:mm:ss.SSS'Z'||yyyy-MM-dd'T'HH:mm:ss'Z'||yyyy-MM-dd||epoch_millis"
+    },
+    "created_at": {
+      "type": "date",
+      "format": "date_time||yyyy-MM-dd'T'HH:mm:ss.SSS'Z'||yyyy-MM-dd'T'HH:mm:ss'Z'||yyyy-MM-dd||epoch_millis"
+    }
+  }
+}
