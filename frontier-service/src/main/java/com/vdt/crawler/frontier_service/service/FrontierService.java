@@ -132,7 +132,7 @@ public class FrontierService {
             Instant lastCrawl = domain.getLastCrawled();
 
             // Add to appropriate front queue based on crawl delay
-            if (addToFrontQueue(url, priority, lastCrawl, crawlDelay)) {
+            if (addToFrontQueue(host, url, priority, lastCrawl, crawlDelay)) {
                 frontierMetrics.incrementScheduledUrlsTotal();
                 logger.info("Added URL to frontier: {} with crawl delay: {}", url, crawlDelay);
             } else {
@@ -189,10 +189,14 @@ public class FrontierService {
         public Instant getLastCrawled() { return lastCrawled; }
     }
 
-    private boolean addToFrontQueue(String url, int priority, Instant lastCrawled, int crawlDelay) {
+    private boolean addToFrontQueue(String domain, String url, int priority, Instant lastCrawled, int crawlDelay) {
         frontQueueLock.writeLock().lock();
         try {
-            int queueKey = priority - crawlDelay;
+            int baseQueueKey = priority - crawlDelay;
+            // Add domain hash to distribute URLs across different queues
+            int domainHash = Math.abs(domain.hashCode() % 3); // Spread across 3 sub-queues
+            int queueKey = baseQueueKey * 10 + domainHash; // e.g., priority 5 -> queues 50, 51, 52
+
             UrlWithTimestamp urlItem = new UrlWithTimestamp(url, lastCrawled);
 
             // Try primary queue first
@@ -200,11 +204,25 @@ public class FrontierService {
                 return true;
             }
 
-            // If failed, try lower priority queues
-            for (int fallbackKey = queueKey - 1; fallbackKey >= queueKey - 3; fallbackKey--) {
-                if (tryAddToQueue(fallbackKey, urlItem)) {
-                    logger.info("Added URL to fallback queue {}: {}", fallbackKey, url);
-                    return true;
+            // If failed, try other sub-queues with same base priority
+            for (int i = 0; i < 3; i++) {
+                if (i != domainHash) {
+                    int alternativeKey = baseQueueKey * 10 + i;
+                    if (tryAddToQueue(alternativeKey, urlItem)) {
+                        logger.debug("Added URL to alternative queue {}: {}", alternativeKey, url);
+                        return true;
+                    }
+                }
+            }
+
+            // If still failed, try lower priority queues
+            for (int fallbackBase = baseQueueKey - 1; fallbackBase >= baseQueueKey - 2; fallbackBase--) {
+                for (int i = 0; i < 3; i++) {
+                    int fallbackKey = fallbackBase * 10 + i;
+                    if (tryAddToQueue(fallbackKey, urlItem)) {
+                        logger.info("Added URL to fallback queue {}: {}", fallbackKey, url);
+                        return true;
+                    }
                 }
             }
 
