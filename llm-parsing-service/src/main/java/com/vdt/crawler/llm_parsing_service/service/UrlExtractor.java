@@ -1,5 +1,6 @@
 package com.vdt.crawler.llm_parsing_service.service;
 
+import com.vdt.crawler.llm_parsing_service.metric.LLMParsingMetrics;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -26,12 +27,15 @@ public class UrlExtractor implements Parsing{
     private final KafkaTemplate<String, String> newUrlParsingKafkaTemplate;
     private final UrlFilter urlFilter;
     private final SitemapExtractor sitemapExtractor;
+    private final LLMParsingMetrics llmParsingMetrics;
 
     @Autowired
-    public UrlExtractor(KafkaTemplate<String, String> newUrlParsingKafkaTemplate, UrlFilter urlFilter, SitemapExtractor sitemapExtractor) {
+    public UrlExtractor(KafkaTemplate<String, String> newUrlParsingKafkaTemplate, UrlFilter urlFilter
+            , SitemapExtractor sitemapExtractor, LLMParsingMetrics llmParsingMetrics) {
         this.newUrlParsingKafkaTemplate = newUrlParsingKafkaTemplate;
         this.urlFilter = urlFilter;
         this.sitemapExtractor = sitemapExtractor;
+        this.llmParsingMetrics = llmParsingMetrics;
     }
 
     @Override
@@ -43,14 +47,17 @@ public class UrlExtractor implements Parsing{
     public void doAfterParse(List<String> result) {
         if (result != null && !result.isEmpty()) {
             logger.info("Found {} URLs after filtering", result.size());
+            int count = 0;
             for (String url : result) {
                 if (urlFilter.allow(url)) {
+                    count++;
                     newUrlParsingKafkaTemplate.send("new_url_tasks", url);
                     logger.debug("Sent new URL to Frontier: {}", url);
                 } else {
                     logger.debug("URL filtered out by UrlFilter: {}", url);
                 }
             }
+            llmParsingMetrics.incrementNewExtractedUrls(count);
         } else {
             logger.info("No URLs found to process");
         }

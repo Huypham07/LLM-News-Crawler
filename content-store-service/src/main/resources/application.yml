@@ -30,7 +30,16 @@ management:
         include: prometheus
   endpoint:
     prometheus:
-      access: read_only
+      access: unrestricted
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  metrics:
+    tags:
+      service: ${spring.application.name}
+      instance: ${server.port}
+
 
 # Logging Configuration
 logging:
@@ -53,3 +62,6 @@ logging:
 springdoc:
   swagger-ui:
     path: /api/docs
+
+gemini:
+  api-key: ${GOOGLE_API_KEY:}

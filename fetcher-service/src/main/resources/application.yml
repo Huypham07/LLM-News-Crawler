@@ -37,7 +37,15 @@ management:
         include: prometheus
   endpoint:
     prometheus:
-      access: read_only
+      access: unrestricted
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  metrics:
+    tags:
+      service: ${spring.application.name}
+      instance: ${server.port}
 
 # Logging Configuration
 logging:

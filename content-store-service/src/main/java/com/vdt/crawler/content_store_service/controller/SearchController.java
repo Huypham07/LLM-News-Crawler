@@ -41,6 +41,38 @@ public class SearchController {
         return ResponseEntity.ok(results);
     }
 
+    @GetMapping("/semantic")
+    @Operation(summary = "Semantic search", description = "AI-powered semantic search using Gemini embeddings")
+    public ResponseEntity<Page<Content>> semanticSearch(
+            @Parameter(description = "Search query for semantic similarity")
+            @RequestParam(value = "q") String query,
+            @Parameter(description = "Page number (0-based)")
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @Parameter(description = "Page size")
+            @RequestParam(value = "size", defaultValue = "10") int size) {
+
+        logger.info("Semantic search request - query: '{}', page: {}, size: {}", query, page, size);
+
+        Page<Content> results = searchService.searchBySemantic(query, page, size);
+        return ResponseEntity.ok(results);
+    }
+
+    @GetMapping("/hybrid")
+    @Operation(summary = "Hybrid search", description = "Combined traditional text search and semantic search for best results")
+    public ResponseEntity<Page<Content>> hybridSearch(
+            @Parameter(description = "Search query for hybrid search")
+            @RequestParam(value = "q") String query,
+            @Parameter(description = "Page number (0-based)")
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @Parameter(description = "Page size")
+            @RequestParam(value = "size", defaultValue = "10") int size) {
+
+        logger.info("Hybrid search request - query: '{}', page: {}, size: {}", query, page, size);
+
+        Page<Content> results = searchService.hybridSearch(query, page, size);
+        return ResponseEntity.ok(results);
+    }
+
     @GetMapping("/author")
     @Operation(summary = "Search by author", description = "Search content by author name using Vietnamese analyzer")
     public ResponseEntity<Page<Content>> searchByAuthor(
@@ -54,25 +86,6 @@ public class SearchController {
         logger.info("Author search request - author: '{}', page: {}, size: {}", author, page, size);
 
         Page<Content> results = searchService.searchByAuthor(author, page, size);
-        return ResponseEntity.ok(results);
-    }
-
-    @GetMapping("/combined")
-    @Operation(summary = "Combined search", description = "Search by both keyword and author")
-    public ResponseEntity<Page<Content>> combinedSearch(
-            @Parameter(description = "Search keyword")
-            @RequestParam(value = "q", required = false) String keyword,
-            @Parameter(description = "Author name")
-            @RequestParam(value = "author", required = false) String author,
-            @Parameter(description = "Page number (0-based)")
-            @RequestParam(value = "page", defaultValue = "0") int page,
-            @Parameter(description = "Page size")
-            @RequestParam(value = "size", defaultValue = "10") int size) {
-
-        logger.info("Combined search request - keyword: '{}', author: '{}', page: {}, size: {}",
-                keyword, author, page, size);
-
-        Page<Content> results = searchService.searchByKeywordAndAuthor(keyword, author, page, size);
         return ResponseEntity.ok(results);
     }
 

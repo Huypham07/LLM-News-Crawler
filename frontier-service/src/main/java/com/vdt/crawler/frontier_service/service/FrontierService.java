@@ -1,5 +1,6 @@
 package com.vdt.crawler.frontier_service.service;
 
+import com.vdt.crawler.frontier_service.metric.FrontierMetrics;
 import com.vdt.crawler.frontier_service.model.Domain;
 import com.vdt.crawler.frontier_service.repository.DomainRepository;
 import com.vdt.crawler.frontier_service.service.robotstxt.RobotstxtServer;
@@ -14,6 +15,7 @@ import java.net.URL;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -22,6 +24,7 @@ public class FrontierService {
     private final RobotstxtServer robotstxtServer;
     private final DomainRepository domainRepository;
     private final Map<String, Domain> domainsDataCache;
+    private final FrontierMetrics frontierMetrics;
 
     private final Logger logger = LoggerFactory.getLogger(FrontierService.class);
 
@@ -47,10 +50,13 @@ public class FrontierService {
     private static final int MAX_QUEUE_SIZE = 10000;
     private static final int NUMBER_OF_BACK_QUEUES = 10;
 
+    private final AtomicInteger currentBackQueueIndex = new AtomicInteger(0);
+
     @Autowired
-    public FrontierService(RobotstxtServer robotstxtServer, DomainRepository domainRepository) {
+    public FrontierService(RobotstxtServer robotstxtServer, DomainRepository domainRepository, FrontierMetrics frontierMetrics) {
         this.robotstxtServer = robotstxtServer;
         this.domainRepository = domainRepository;
+        this.frontierMetrics = frontierMetrics;
         this.domainsDataCache = new ConcurrentHashMap<>();
         this.frontQueues = new ConcurrentHashMap<>();
         this.backQueues = new ConcurrentHashMap<>();
@@ -99,13 +105,9 @@ public class FrontierService {
 
     private void processUrl(String url) {
         try {
-            // Check robots.txt
-            if (!robotstxtServer.allows(url)) {
-                logger.debug("URL blocked by robots.txt: {}", url);
-                return;
-            }
-
             String host = new URL(url).getHost();
+
+            // Check robots.txt
 
             Double crawlDelay_double = robotstxtServer.getCrawlDelay(url);
             int crawlDelay = crawlDelay_double != null ? crawlDelay_double.intValue() : 2;
@@ -115,7 +117,14 @@ public class FrontierService {
             );
 
             if (domain == null) {
+                frontierMetrics.incrementRejectedUrls();
                 logger.warn("Drop {} in domain {}", url, host);
+                return;
+            }
+
+            if (!robotstxtServer.allows(url)) {
+                frontierMetrics.incrementRejectedUrls(host);
+                logger.info("URL blocked by robots.txt: {}", url);
                 return;
             }
 
@@ -123,10 +132,14 @@ public class FrontierService {
             Instant lastCrawl = domain.getLastCrawled();
 
             // Add to appropriate front queue based on crawl delay
-            addToFrontQueue(url, priority, lastCrawl, crawlDelay);
-
-            logger.debug("Added URL to frontier: {} with crawl delay: {}", url, crawlDelay);
+            if (addToFrontQueue(url, priority, lastCrawl, crawlDelay)) {
+                frontierMetrics.incrementScheduledUrlsTotal();
+                logger.info("Added URL to frontier: {} with crawl delay: {}", url, crawlDelay);
+            } else {
+                frontierMetrics.incrementRejectedUrls(host);
+            }
         } catch (InterruptedException | IOException e) {
+            frontierMetrics.incrementRejectedUrls();
             logger.error("Error processing URL: {}", url, e);
         }
 
@@ -176,7 +189,7 @@ public class FrontierService {
         public Instant getLastCrawled() { return lastCrawled; }
     }
 
-    private void addToFrontQueue(String url, int priority, Instant lastCrawled, int crawlDelay) {
+    private boolean addToFrontQueue(String url, int priority, Instant lastCrawled, int crawlDelay) {
         frontQueueLock.writeLock().lock();
         try {
             int queueKey = priority - crawlDelay;
@@ -184,18 +197,19 @@ public class FrontierService {
 
             // Try primary queue first
             if (tryAddToQueue(queueKey, urlItem)) {
-                return;
+                return true;
             }
 
             // If failed, try lower priority queues
             for (int fallbackKey = queueKey - 1; fallbackKey >= queueKey - 3; fallbackKey--) {
                 if (tryAddToQueue(fallbackKey, urlItem)) {
                     logger.info("Added URL to fallback queue {}: {}", fallbackKey, url);
-                    return;
+                    return true;
                 }
             }
 
             logger.warn("All queues full, dropping URL: {}", url);
+            return false;
         } finally {
             frontQueueLock.writeLock().unlock();
         }
@@ -268,16 +282,16 @@ public class FrontierService {
         backQueueLock.writeLock().lock();
         try {
             List<String> queueIds = new ArrayList<>(backQueues.keySet());
-            Collections.sort(queueIds); // Ensure consistent order
+            Collections.sort(queueIds);
 
-            // Round-robin selection
-            for (int i = 0; i < queueIds.size(); i++) {
-                String queueId = queueIds.get((currentBackQueue != null ?
-                        queueIds.indexOf(currentBackQueue) + i : i) % queueIds.size());
+            int total = queueIds.size();
+            for (int i = 0; i < total; i++) {
+                int index = (currentBackQueueIndex.get() + i) % total;
+                String queueId = queueIds.get(index);
 
                 BlockingQueue<String> queue = backQueues.get(queueId);
                 if (queue != null && !queue.isEmpty()) {
-                    currentBackQueue = queueId;
+                    currentBackQueueIndex.set((index + 1) % total);
                     return queue.poll();
                 }
             }

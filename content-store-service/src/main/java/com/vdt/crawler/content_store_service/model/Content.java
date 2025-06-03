@@ -40,6 +40,10 @@ public class Content {
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "UTC")
     private Instant publishAt;
 
+    @Field(type = FieldType.Dense_Vector, dims = 768, name = "content_embedding")
+    @JsonProperty("content_embedding")
+    private float[] contentEmbedding;
+
     @Override
     public String toString() {
         return "Content{" +
@@ -48,6 +52,7 @@ public class Content {
                 ", title='" + title + '\'' +
                 ", author='" + author + '\'' +
                 ", publishAt=" + publishAt +
+                ", hasEmbedding=" + (contentEmbedding != null && contentEmbedding.length > 0) +
                 '}';
     }
 }

@@ -8,12 +8,12 @@ import com.vdt.crawler.llm_parsing_service.exception.ContentParsingExcetion;
 import com.vdt.crawler.llm_parsing_service.exception.LLMParsingException;
 import com.vdt.crawler.llm_parsing_service.exception.MaxTokenLLMException;
 import com.vdt.crawler.llm_parsing_service.exception.RateLimitExceededException;
+import com.vdt.crawler.llm_parsing_service.metric.LLMParsingMetrics;
 import com.vdt.crawler.llm_parsing_service.model.Content;
 import com.vdt.crawler.llm_parsing_service.model.ContentCssSelector;
 import com.vdt.crawler.llm_parsing_service.repository.CssSelectorRepository;
 import com.vdt.crawler.llm_parsing_service.util.DateTimeUtil;
 import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,8 +23,6 @@ import org.springframework.stereotype.Service;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.Instant;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -32,7 +30,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.regex.Pattern;
 
 @Service
 public class LLMParsing {
@@ -52,12 +49,15 @@ public class LLMParsing {
     private final Queue<Long> requestTimestamps = new ConcurrentLinkedQueue<>();
     private final ReentrantLock rateLimitLock = new ReentrantLock();
 
+    private final LLMParsingMetrics llmParsingMetrics;
+
     @Autowired
-    public LLMParsing(CssSelectorRepository cssSelectorRepository, Client genaiClient) {
+    public LLMParsing(CssSelectorRepository cssSelectorRepository, Client genaiClient, LLMParsingMetrics llmParsingMetrics) {
         this.cssSelectorRepository = cssSelectorRepository;
         contentCssSelectorMap = new ConcurrentHashMap<>();
         this.genaiClient = genaiClient;
         this.objectMapper = new ObjectMapper();
+        this.llmParsingMetrics = llmParsingMetrics;
     }
 
 
@@ -100,9 +100,11 @@ public class LLMParsing {
 
             if (result.getTitle() == null || result.getTitle().isEmpty() ||
                     result.getContent() == null || result.getContent().isEmpty()) {
+                llmParsingMetrics.incrementFailedArticles(host);
                 throw new ContentParsingExcetion(result, url);
             }
             logger.debug(">>> result: {}", result);
+            llmParsingMetrics.incrementParsedArticles(host);
             return result;
         } catch (MalformedURLException e) {
             logger.error("Invalid URL: {}", url, e);

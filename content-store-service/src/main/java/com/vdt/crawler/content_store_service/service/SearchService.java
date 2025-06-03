@@ -16,10 +16,12 @@ public class SearchService {
 
     private final Logger logger = LoggerFactory.getLogger(SearchService.class);
     private final ContentRepository contentRepository;
+    private final EmbeddingService embeddingService;
 
     @Autowired
-    public SearchService(ContentRepository contentRepository) {
+    public SearchService(ContentRepository contentRepository, EmbeddingService embeddingService) {
         this.contentRepository = contentRepository;
+        this.embeddingService = embeddingService;
     }
 
     /**
@@ -64,37 +66,6 @@ public class SearchService {
         }
     }
 
-    /**
-     * Combined search by keyword and author
-     */
-    public Page<Content> searchByKeywordAndAuthor(String keyword, String author, int page, int size) {
-        try {
-            if ((keyword == null || keyword.trim().isEmpty()) &&
-                    (author == null || author.trim().isEmpty())) {
-                return getRecentContent(page, size);
-            }
-
-            if (keyword == null || keyword.trim().isEmpty()) {
-                return searchByAuthor(author, page, size);
-            }
-
-            if (author == null || author.trim().isEmpty()) {
-                return searchByKeyword(keyword, page, size);
-            }
-
-            Pageable pageable = PageRequest.of(page, size, Sort.by("publish_at").descending());
-            Page<Content> results = contentRepository.findByKeywordAndAuthor(
-                    keyword.trim(), author.trim(), pageable);
-
-            logger.info("Combined search for keyword '{}' and author '{}' returned {} results",
-                    keyword, author, results.getTotalElements());
-            return results;
-
-        } catch (Exception e) {
-            logger.error("Error in combined search - keyword: {}, author: {}", keyword, author, e);
-            return Page.empty();
-        }
-    }
 
     /**
      * Advanced search with multiple fields
@@ -169,6 +140,64 @@ public class SearchService {
         } catch (Exception e) {
             logger.error("Error checking existence by URL: {}", url, e);
             return false;
+        }
+    }
+
+    /**
+     * Semantic search using embedding similarity
+     */
+    public Page<Content> searchBySemantic(String query, int page, int size) {
+        try {
+            if (query == null || query.trim().isEmpty()) {
+                return getRecentContent(page, size);
+            }
+
+            // Generate embedding for the search query
+            float[] queryEmbedding = embeddingService.generateEmbedding(query.trim());
+
+            if (queryEmbedding.length == 0) {
+                logger.warn("Failed to generate embedding for query: {}", query);
+                return Page.empty();
+            }
+
+            Pageable pageable = PageRequest.of(page, size);
+            Page<Content> results = contentRepository.findBySemanticSimilarity(queryEmbedding, pageable);
+
+            logger.info("Semantic search for query '{}' returned {} results", query, results.getTotalElements());
+            return results;
+
+        } catch (Exception e) {
+            logger.error("Error in semantic search for query: {}", query, e);
+            return Page.empty();
+        }
+    }
+
+    /**
+     * Hybrid search combining keyword and semantic similarity
+     */
+    public Page<Content> hybridSearch(String query, int page, int size) {
+        try {
+            if (query == null || query.trim().isEmpty()) {
+                return getRecentContent(page, size);
+            }
+
+            // Generate embedding for the search query
+            float[] queryEmbedding = embeddingService.generateEmbedding(query.trim());
+
+            if (queryEmbedding.length == 0) {
+                logger.warn("Failed to generate embedding for hybrid search, falling back to text search");
+                return searchByKeyword(query, page, size);
+            }
+
+            Pageable pageable = PageRequest.of(page, size);
+            Page<Content> results = contentRepository.findByHybridSearch(query.trim(), queryEmbedding, pageable);
+
+            logger.info("Hybrid search for query '{}' returned {} results", query, results.getTotalElements());
+            return results;
+
+        } catch (Exception e) {
+            logger.error("Error in hybrid search for query: {}", query, e);
+            return Page.empty();
         }
     }
 }
