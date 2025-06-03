@@ -16,20 +16,11 @@ import java.time.Instant;
 @AllArgsConstructor
 @Builder
 public class Content {
-    @Id
     private String id;
-
-    @Indexed(unique = true)
     private String url;
-
-    @NotNull
     private String title;
-
-    @NotNull
     private String content;
-
     private String author;
-
-    @Field("publish_at")
     private Instant publishAt;
+    private float[] contentEmbedding;
 }

@@ -1,5 +1,6 @@
 package com.vdt.crawler.frontier_service.service;
 
+import com.vdt.crawler.frontier_service.metric.FrontierMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -7,6 +8,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -18,12 +20,14 @@ public class FrontierScheduler {
 
     private final FrontierService frontierService;
     private final KafkaTemplate<String, String> kafkaTemplate;
+    private final FrontierMetrics frontierMetrics;
     private final AtomicBoolean isProcessing = new AtomicBoolean(false);
 
     @Autowired
-    public FrontierScheduler(FrontierService frontierService, KafkaTemplate<String, String> kafkaTemplate) {
+    public FrontierScheduler(FrontierService frontierService, KafkaTemplate<String, String> kafkaTemplate, FrontierMetrics frontierMetrics) {
         this.frontierService = frontierService;
         this.kafkaTemplate = kafkaTemplate;
+        this.frontierMetrics = frontierMetrics;
     }
 
     /**
@@ -66,9 +70,11 @@ public class FrontierScheduler {
                 // Send to crawler service via Kafka
                 for (String url : urlsToSend) {
                     kafkaTemplate.send("fetching_tasks", url);
+                    String host = new URL(url).getHost();
+                    frontierMetrics.incrementProcessedUrls(host);
                 }
 
-                logger.debug("Sent {} URLs to fetcher", urlsToSend.size());
+                logger.info("Sent {} URLs to fetcher", urlsToSend.size());
             }
 
         } catch (Exception e) {

@@ -138,7 +138,12 @@ services:
     container_name: prometheus
     restart: unless-stopped
     volumes:
-      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus/:/etc/prometheus/
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
     ports:
       - "9090:9090"
     networks:
@@ -161,6 +166,8 @@ services:
       - prometheus:prometheus
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning/:/etc/grafana/provisioning/
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
     depends_on:
       - prometheus
     networks:
@@ -200,6 +207,12 @@ services:
       resources:
         limits:
           memory: 2g
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1" ]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
   # Kibana
   kibana:
@@ -339,10 +352,13 @@ services:
       - ELASTICSEARCH_USERNAME=root
       - ELASTICSEARCH_PASSWORD=root
       - JAVA_OPTS="-Xmx1g -Xms512m"
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
     depends_on:
       mongo:
         condition: service_started
       kafka:
+        condition: service_healthy
+      elasticsearch:
         condition: service_healthy
     volumes:
       - ./content-store-service/logs:/app/logs

@@ -33,7 +33,7 @@ public class FetcherConsumer {
     @KafkaListener(
             topics = "fetching_tasks",
             groupId = "fetching_group",
-            concurrency = "5"
+            concurrency = "10"
     )
     public void handleCrawlerTask(
             @Payload String message,
@@ -42,7 +42,7 @@ public class FetcherConsumer {
             @Header(KafkaHeaders.OFFSET) long offset,
             Acknowledgment acknowledgment) {
 
-        logger.debug("Received message from topic: {} partition: {} offset: {}", topic, partition, offset);
+        logger.info("Received message from topic: {} partition: {} offset: {}", topic, partition, offset);
 
         try {
             processUrlAsync(message.trim());
@@ -56,7 +56,7 @@ public class FetcherConsumer {
     private void processUrlAsync(String url) {
         executorService.submit(() -> {
             try {
-                logger.debug("Fetching URL: {}", url);
+                logger.info("Fetching URL: {}", url);
                 fetcherService.processUrl(url);
             } catch (Exception e) {
                 logger.error("Error fetching URL {}: {}", url, e.getMessage());

@@ -17,13 +17,15 @@ import java.util.concurrent.Executors;
 public class ParsingConsumer {
     private final Logger logger = LoggerFactory.getLogger(ParsingConsumer.class);
 
-    private final ExecutorService executorService;
     private final ParsingService parsingService;
+    private final ExecutorService executorService;
+    private final ExecutorService homeExecutorService;
 
     @Autowired
     public ParsingConsumer(ParsingService parsingService) {
         this.parsingService = parsingService;
         this.executorService = Executors.newFixedThreadPool(10);
+        this.homeExecutorService = Executors.newFixedThreadPool(5);
     }
 
     /**
@@ -33,7 +35,7 @@ public class ParsingConsumer {
             topics = "parsing_tasks",
             containerFactory = "parsingListenerContainerFactory",
             groupId = "parsing_group",
-            concurrency = "5"
+            concurrency = "10"
     )
     public void handleParsingTask(
             @Payload String message,
@@ -87,13 +89,24 @@ public class ParsingConsumer {
     }
 
     private void processParsingAsync(String rawHtml, int type) {
-        executorService.submit(() -> {
-            try {
-                logger.debug("Start parsing ...");
-                parsingService.parse(rawHtml, type);
-            } catch (Exception e) {
-                logger.error("Error parsing: {}", e.getMessage());
-            }
-        });
+        if (type == Parsing.SITEMAP) {
+            homeExecutorService.submit(() -> {
+                try {
+                    logger.debug("Start parsing ...");
+                    parsingService.parse(rawHtml, type);
+                } catch (Exception e) {
+                    logger.error("Error parsing: {}", e.getMessage());
+                }
+            });
+        } else {
+            executorService.submit(() -> {
+                try {
+                    logger.debug("Start parsing ...");
+                    parsingService.parse(rawHtml, type);
+                } catch (Exception e) {
+                    logger.error("Error parsing: {}", e.getMessage());
+                }
+            });
+        }
     }
 }

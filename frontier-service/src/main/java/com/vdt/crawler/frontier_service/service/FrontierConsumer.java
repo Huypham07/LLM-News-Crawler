@@ -23,11 +23,13 @@ public class FrontierConsumer {
 
     private final FrontierService frontierService;
     private final ExecutorService executorService;
+    private final ExecutorService retryExecutorService;
 
     @Autowired
     public FrontierConsumer(FrontierService frontierService) {
         this.frontierService = frontierService;
         this.executorService = Executors.newFixedThreadPool(10); // Thread pool for parallel processing
+        this.retryExecutorService = Executors.newFixedThreadPool(2);
     }
 
     /**
@@ -37,7 +39,7 @@ public class FrontierConsumer {
             topics = "new_url_tasks",
             containerFactory = "newUrlListenerContainerFactory",
             groupId = "new_url_group",
-            concurrency = "5"
+            concurrency = "10"
     )
     public void handleNewUrls(
             @Payload String message,
@@ -132,14 +134,25 @@ public class FrontierConsumer {
     }
 
     private void processUrlAsync(String url, String source) {
-        executorService.submit(() -> {
-            try {
-                logger.debug("Processing {} URL: {}", source, url);
-                frontierService.addToFrontier(url);
-            } catch (Exception e) {
-                logger.error("Error processing URL {}: {}", url, e.getMessage());
-            }
-        });
+        if (source.equals("RETRY")) {
+            retryExecutorService.submit(() -> {
+                try {
+                    logger.debug("Processing {} URL: {}", source, url);
+                    frontierService.addToFrontier(url);
+                } catch (Exception e) {
+                    logger.error("Error processing URL {}: {}", url, e.getMessage());
+                }
+            });
+        } else {
+            executorService.submit(() -> {
+                try {
+                    logger.debug("Processing {} URL: {}", source, url);
+                    frontierService.addToFrontier(url);
+                } catch (Exception e) {
+                    logger.error("Error processing URL {}: {}", url, e.getMessage());
+                }
+            });
+        }
     }
 
     private void processUrlsAsync(List<String> urls, String source) {

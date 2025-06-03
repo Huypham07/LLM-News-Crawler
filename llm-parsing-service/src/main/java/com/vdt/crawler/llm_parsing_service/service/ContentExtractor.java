@@ -1,6 +1,7 @@
 package com.vdt.crawler.llm_parsing_service.service;
 
 import com.vdt.crawler.llm_parsing_service.exception.ContentParsingExcetion;
+import com.vdt.crawler.llm_parsing_service.metric.LLMParsingMetrics;
 import com.vdt.crawler.llm_parsing_service.model.Content;
 import com.vdt.crawler.llm_parsing_service.util.UrlUtil;
 import org.jsoup.Jsoup;
@@ -19,7 +20,8 @@ public class ContentExtractor implements Parsing{
     private final LLMParsing llmParsing;
 
     @Autowired
-    public ContentExtractor(KafkaTemplate<String, Content> contentKafkaTemplate, UrlFilter urlFilter, LLMParsing llmParsing) {
+    public ContentExtractor(KafkaTemplate<String, Content> contentKafkaTemplate
+            , UrlFilter urlFilter, LLMParsing llmParsing) {
         this.contentKafkaTemplate = contentKafkaTemplate;
         this.urlFilter = urlFilter;
         this.llmParsing = llmParsing;

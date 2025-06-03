@@ -1,6 +1,7 @@
 package com.vdt.crawler.fetcher_service.service;
 
 import com.vdt.crawler.fetcher_service.exception.PageBiggerThanMaxSizeException;
+import com.vdt.crawler.fetcher_service.metric.FetcherMetrics;
 import com.vdt.crawler.fetcher_service.model.Domain;
 import com.vdt.crawler.fetcher_service.model.RetryUrlMessage;
 import com.vdt.crawler.fetcher_service.model.URLMetaData;
@@ -34,18 +35,20 @@ public class FetcherService {
     private final URLRepository urlRepository;
     private final RedisTemplate<String, Long> redisTemplate;
     private final RestTemplate restTemplate;
+    private final FetcherMetrics fetcherMetrics;
 
     @Autowired
     public FetcherService(PageFetcher pageFetcher, URLRepository urlRepository,
                           @Qualifier("parsingKafkaTemplate")KafkaTemplate<String, String> parsingKafkaTemplate,
                           @Qualifier("retryKafkaTemplate")KafkaTemplate<String, RetryUrlMessage> retryKafkaTemplate,
-                          RedisTemplate<String, Long> redisTemplate, RestTemplate restTemplate) {
+                          RedisTemplate<String, Long> redisTemplate, RestTemplate restTemplate, FetcherMetrics fetcherMetrics) {
         this.pageFetcher = pageFetcher;
         this.parsingKafkaTemplate = parsingKafkaTemplate;
         this.retryKafkaTemplate = retryKafkaTemplate;
         this.urlRepository = urlRepository;
         this.redisTemplate = redisTemplate;
         this.restTemplate = restTemplate;
+        this.fetcherMetrics = fetcherMetrics;
     }
 
     @Value("${fetcher-service.frontier-hostname:localhost}")
@@ -56,13 +59,27 @@ public class FetcherService {
             logger.error("url is null or empty");
             return;
         }
+
+        String host;
+        String path;
+        try {
+            URL urlObj = new URL(url);
+            host = urlObj.getHost();
+            path = urlObj.getPath();
+        } catch (MalformedURLException e) {
+            logger.error("Malformed URL: {}", url);
+            return;
+        }
+
         PageFetchResult result = fetch(url);
 
         if (result == null) {
+            fetcherMetrics.incrementFailedUrls(host);
             return;
         }
 
         if (!result.getContentType().contains("html")) {
+            fetcherMetrics.incrementFailedUrls(host);
             logger.warn("url {} is not html -> drop", url);
             return;
         }
@@ -76,18 +93,8 @@ public class FetcherService {
                 content = new String(result.getContentData(), result.getContentCharset());
             }
         } catch (UnsupportedEncodingException e) {
+            fetcherMetrics.incrementFailedUrls(host);
             logger.error("UnsupportedEncodingException", e);
-            return;
-        }
-
-        String host;
-        String path;
-        try {
-            URL urlObj = new URL(url);
-            host = urlObj.getHost();
-            path = urlObj.getPath();
-        } catch (MalformedURLException e) {
-            logger.error("Malformed URL: {}", url);
             return;
         }
 
@@ -111,6 +118,7 @@ public class FetcherService {
             redisTemplate.opsForValue().set("status:" + urlHash, (long) result.getStatusCode(), Duration.ofMinutes(20));
             retryKafkaTemplate.send("retry_url_tasks", new RetryUrlMessage(url, urlMetaData.getRetryCount(),
                     urlMetaData.getLastAttempt(), urlMetaData.getStatusCode()));
+            fetcherMetrics.incrementFailedUrls(host);
             return;
         }
 
@@ -124,11 +132,13 @@ public class FetcherService {
 
         if (path.isEmpty() || path.equals("/")) {
             parsingKafkaTemplate.send("home_parsing_tasks", content);
-            logger.debug("sent raw html of url:{} to Parser to explore sitemap of domain", url);
+            logger.info("sent raw html of url:{} to Parser to explore sitemap of domain", url);
         } else {
             parsingKafkaTemplate.send("parsing_tasks", content);
-            logger.debug("sent raw html of url:{} to Parser", url);
+            logger.info("sent raw html of url:{} to Parser", url);
         }
+
+        fetcherMetrics.incrementFetchedUrls(host);
     }
 
     private PageFetchResult fetch(String url) {

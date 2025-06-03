@@ -1,5 +1,6 @@
 package com.vdt.crawler.frontier_service.service;
 
+import com.vdt.crawler.frontier_service.metric.FrontierMetrics;
 import com.vdt.crawler.frontier_service.repository.DomainRepository;
 import com.vdt.crawler.frontier_service.service.robotstxt.RobotstxtServer;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,6 +27,9 @@ public class FrontierServiceTest {
 
     @Autowired
     private DomainRepository domainRepository;
+
+    @Mock
+    private FrontierMetrics frontierMetrics;
     /**
      * db must have vnexpress.net, dantri.com.vn, thanhnien.vn
      */
@@ -40,7 +44,7 @@ public class FrontierServiceTest {
         when(robotstxtServer.allows(anyString())).thenReturn(true);
         when(robotstxtServer.getCrawlDelay(anyString())).thenReturn(1.0); // 1 second delay
 
-        frontierService = new FrontierService(robotstxtServer, domainRepository);
+        frontierService = new FrontierService(robotstxtServer, domainRepository, frontierMetrics);
     }
 
     @Test

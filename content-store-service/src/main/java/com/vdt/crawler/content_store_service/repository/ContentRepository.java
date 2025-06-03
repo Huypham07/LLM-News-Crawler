@@ -19,7 +19,7 @@ public interface ContentRepository extends ElasticsearchRepository<Content, Stri
         {
           "multi_match": {
             "query": "?0",
-            "fields": ["title^3", "content^1"],
+            "fields": ["title^2", "content^1"],
             "analyzer": "vi_analyzer",
             "type": "best_fields",
             "prefix_length": 1
@@ -27,6 +27,20 @@ public interface ContentRepository extends ElasticsearchRepository<Content, Stri
         }
         """)
     Page<Content> findByTitleOrContentContaining(String keyword, Pageable pageable);
+
+    // Search by title only
+    @Query("""
+        {
+          "match": {
+            "title": {
+              "query": "?0",
+              "analyzer": "vi_analyzer",
+              "boost": 2.0
+            }
+          }
+        }
+        """)
+    Page<Content> findByTitle(String title, Pageable pageable);
 
 // "fuzziness": "AUTO"
     @Query("""
@@ -42,33 +56,6 @@ public interface ContentRepository extends ElasticsearchRepository<Content, Stri
     Page<Content> findByAuthorContaining(String author, Pageable pageable);
 
 
-    // "fuzziness": "AUTO"
-    @Query("""
-        {
-          "bool": {
-            "must": [
-              {
-                "multi_match": {
-                  "query": "?0",
-                  "fields": ["title^3", "content^1"],
-                  "analyzer": "vi_analyzer",
-                  "type": "best_fields"
-                }
-              },
-              {
-                "match": {
-                  "author": {
-                    "query": "?1",
-                    "analyzer": "vi_analyzer"
-                  }
-                }
-              }
-            ]
-          }
-        }
-        """)
-    Page<Content> findByKeywordAndAuthor(String keyword, String author, Pageable pageable);
-
     @Query("""
         {
           "multi_match": {
@@ -82,19 +69,62 @@ public interface ContentRepository extends ElasticsearchRepository<Content, Stri
         """)
     Page<Content> searchAdvanced(String query, Pageable pageable);
 
-    // Search by title only
+    // Semantic search using vector similarity
     @Query("""
         {
-          "match": {
-            "title": {
-              "query": "?0",
-              "analyzer": "vi_analyzer",
-              "boost": 2.0
+          "script_score": {
+            "query": {
+              "exists": {
+                "field": "content_embedding"
+              }
+            },
+            "script": {
+              "source": "cosineSimilarity(params.query_vector, 'content_embedding') + 1.0",
+              "params": {
+                "query_vector": ?0
+              }
             }
           }
         }
         """)
-    Page<Content> findByTitle(String title, Pageable pageable);
+    Page<Content> findBySemanticSimilarity(float[] queryVector, Pageable pageable);
+
+    // Hybrid search: combine text search with semantic search
+    @Query("""
+        {
+          "bool": {
+            "should": [
+              {
+                "multi_match": {
+                  "query": "?0",
+                  "fields": ["title^3", "content^1"],
+                  "analyzer": "vi_analyzer",
+                  "type": "best_fields",
+                  "boost": 1.0
+                }
+              },
+              {
+                "script_score": {
+                  "query": {
+                    "exists": {
+                      "field": "content_embedding"
+                    }
+                  },
+                  "script": {
+                    "source": "cosineSimilarity(params.query_vector, 'content_embedding') + 1.0",
+                    "params": {
+                      "query_vector": ?1
+                    }
+                  },
+                  "boost": 2.0
+                }
+              }
+            ],
+            "minimum_should_match": 1
+          }
+        }
+        """)
+    Page<Content> findByHybridSearch(String textQuery, float[] queryVector, Pageable pageable);
 
     // Get recent content
     Page<Content> findAllByOrderByPublishAtDesc(Pageable pageable);

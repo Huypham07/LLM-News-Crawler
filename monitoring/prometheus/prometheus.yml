@@ -1,6 +1,6 @@
 global:
-  scrape_interval: 15s
-  evaluation_interval: 15s
+  scrape_interval: 10s
+  evaluation_interval: 10s
 
 scrape_configs:
   # Prometheus itself
@@ -8,7 +8,7 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090']
 
-  # Spring Boot Applications
+  # Applications
   - job_name: 'frontier-service'
     metrics_path: '/actuator/prometheus'
     static_configs:
@@ -28,3 +28,24 @@ scrape_configs:
     metrics_path: '/actuator/prometheus'
     static_configs:
       - targets: ['content-store-service:8094']
+
+  # Local Application
+#  - job_name: 'frontier-service'
+#    metrics_path: '/actuator/prometheus'
+#    static_configs:
+#      - targets: [ 'localhost:8091' ]
+#
+#  - job_name: 'fetcher-service'
+#    metrics_path: '/actuator/prometheus'
+#    static_configs:
+#      - targets: [ 'localhost:8092' ]
+#
+#  - job_name: 'llm-parsing-service'
+#    metrics_path: '/actuator/prometheus'
+#    static_configs:
+#      - targets: [ 'localhost:8093' ]
+#
+#  - job_name: 'content-store-service'
+#    metrics_path: '/actuator/prometheus'
+#    static_configs:
+#      - targets: [ 'localhost:8094' ]
