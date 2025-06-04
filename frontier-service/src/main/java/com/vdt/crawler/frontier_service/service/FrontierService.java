@@ -52,6 +52,10 @@ public class FrontierService {
 
     private final AtomicInteger currentBackQueueIndex = new AtomicInteger(0);
 
+    // Weighted round-robin schedule: more weight = more frequent access
+    private final List<Integer> weightedSchedule = List.of(3, 3, 3, 3, 3, 2, 2, 2, 1); // priority levels
+    private final AtomicInteger currentScheduleIndex = new AtomicInteger(0); // Thread-safe counter
+
     @Autowired
     public FrontierService(RobotstxtServer robotstxtServer, DomainRepository domainRepository, FrontierMetrics frontierMetrics) {
         this.robotstxtServer = robotstxtServer;
@@ -155,10 +159,10 @@ public class FrontierService {
     }
 
     public String getNextUrlfromRetrySet() {
-        if (retryUrlsSet.isEmpty()) {
-            return null;
-        }
-        return retryUrlsSet.first();
+        if (retryUrlsSet.isEmpty()) return null;
+        String url = retryUrlsSet.first();
+        retryUrlsSet.remove(url);
+        return url;
     }
 
     public static class UrlWithTimestamp implements Comparable<UrlWithTimestamp> {
@@ -192,7 +196,7 @@ public class FrontierService {
     private boolean addToFrontQueue(String domain, String url, int priority, Instant lastCrawled, int crawlDelay) {
         frontQueueLock.writeLock().lock();
         try {
-            int baseQueueKey = priority - crawlDelay;
+            int baseQueueKey = priority;
             // Add domain hash to distribute URLs across different queues
             int domainHash = Math.abs(domain.hashCode() % 3); // Spread across 3 sub-queues
             int queueKey = baseQueueKey * 10 + domainHash; // e.g., priority 5 -> queues 50, 51, 52
@@ -242,17 +246,37 @@ public class FrontierService {
     }
 
     /**
-     * Get next URL from front queue (prioritized by crawl delay)
+     * Get next URL from front queue (prioritized by crawl delay) weight round robin
      */
     public String getNextUrlFromFrontQueue() {
         frontQueueLock.writeLock().lock();
         try {
-            // get queue having highest key
-            return frontQueues.entrySet().stream()
-                    .filter(entry -> !entry.getValue().isEmpty())
-                    .max(Map.Entry.comparingByKey())
-                    .map(entry -> Objects.requireNonNull(entry.getValue().poll()).getUrl())
-                    .orElse(null);
+            int trials = weightedSchedule.size();
+            int startIndex = currentScheduleIndex.get();
+            while (trials-- > 0) {
+                int priorityLevel = weightedSchedule.get(currentScheduleIndex.get());
+                currentScheduleIndex.updateAndGet(i -> (i + 1) % weightedSchedule.size());
+
+                // Lặp qua 3 sub-queues cùng priority
+                int startSubQueue = (int) (System.nanoTime() % 3);
+                for (int j = 0; j < 3; j++) {
+                    int i = (startSubQueue + j) % 3;
+                    int queueKey = priorityLevel * 10 + i;
+                    BlockingQueue<UrlWithTimestamp> queue = frontQueues.get(queueKey);
+
+                    if (queue != null && !queue.isEmpty()) {
+                        UrlWithTimestamp item = queue.poll();
+                        if (item != null) {
+                            logger.debug("Retrieved URL from queue {} (priority {}): {}",
+                                    queueKey, priorityLevel, item.getUrl());
+                            return item.getUrl();
+                        }
+                    }
+                }
+            }
+
+            logger.debug("No URLs available in any front queue");
+            return null;
         } finally {
             frontQueueLock.writeLock().unlock();
         }

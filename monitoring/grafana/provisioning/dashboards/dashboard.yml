@@ -3,7 +3,7 @@ apiVersion: 1
 providers:
   - name: 'crawler-dashboard'
     orgId: 1
-    folder: 'Crawler System'
+    folder: ''
     type: file
     disableDeletion: false
     updateIntervalSeconds: 10
