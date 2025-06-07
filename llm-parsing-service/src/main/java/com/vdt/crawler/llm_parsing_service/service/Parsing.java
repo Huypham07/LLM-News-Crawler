@@ -23,9 +23,9 @@ public interface Parsing {
     );
 
     Pattern ARTICLE_URL_PATTERN = Pattern.compile(
-            ".*(\\d{10,}|\\d{4}-\\d{2}-\\d{2}|[a-z0-9-]{50,})\\.htm[l]?$|" +  // Long ID or long slug with .htm/.html
-                    ".*-\\d{12,}[^/]*$|.*-\\d{4}\\d{2}\\d{2}[^/]*$" +// Ending with long timestamp
-                    "|.*-[a-z]?\\d{3,}\\.htm[l]?$",
+            ".*(\\d{10,}|\\d{4}-\\d{2}-\\d{2}|[a-z0-9-]{50,})(\\.(htm[l]?|tpo|php|aspx|epi))?$|" +  // Long ID or long slug
+                    ".*-\\d{12,}[^/]*$|.*-\\d{4}\\d{2}\\d{2}[^/]*$" + // Ending with long timestamp
+                    "|.*-[a-z]?\\d{3,}(\\.(htm[l]?|tpo|php|aspx|epi))?$",
             Pattern.CASE_INSENSITIVE
     );
 
