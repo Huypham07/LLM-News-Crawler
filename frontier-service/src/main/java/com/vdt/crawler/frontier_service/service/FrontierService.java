@@ -43,6 +43,8 @@ public class FrontierService {
     private final ReadWriteLock mappingLock = new ReentrantReadWriteLock();
 
     private final ConcurrentSkipListSet<String> retryUrlsSet = new ConcurrentSkipListSet<>();
+    private final ConcurrentHashMap<String, Boolean> urlsInQueue = new ConcurrentHashMap<>();
+
     // Queue selectors
     private volatile String currentBackQueue = null;
 
@@ -109,6 +111,11 @@ public class FrontierService {
 
     private void processUrl(String url) {
         try {
+            if (urlsInQueue.containsKey(url)) {
+                logger.debug("URL already in queue, skipping: {}", url);
+                return;
+            }
+
             String host = new URL(url).getHost();
 
             // Check robots.txt
@@ -138,6 +145,7 @@ public class FrontierService {
             // Add to appropriate front queue based on crawl delay
             if (addToFrontQueue(host, url, priority, lastCrawl, crawlDelay)) {
                 frontierMetrics.incrementScheduledUrlsTotal();
+                urlsInQueue.put(url, true);
                 logger.info("Added URL to frontier: {} with crawl delay: {}", url, crawlDelay);
             } else {
                 frontierMetrics.incrementRejectedUrls(host);
@@ -334,7 +342,11 @@ public class FrontierService {
                 BlockingQueue<String> queue = backQueues.get(queueId);
                 if (queue != null && !queue.isEmpty()) {
                     currentBackQueueIndex.set((index + 1) % total);
-                    return queue.poll();
+                    String url = queue.poll();
+                    if (url != null) {
+                        urlsInQueue.remove(url);
+                    }
+                    return url;
                 }
             }
 
@@ -446,6 +458,8 @@ public class FrontierService {
         } finally {
             mappingLock.writeLock().unlock();
         }
+
+        urlsInQueue.clear();
 
         logger.info("All frontier queues cleared");
     }

@@ -1,6 +1,7 @@
 package com.vdt.crawler.content_store_service.model;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -16,6 +17,7 @@ import java.time.Instant;
 @Document(indexName = "contents")
 @Setting(settingPath = "elasticsearch/content-settings.json")
 @Mapping(mappingPath = "elasticsearch/content-mapping.json")
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class Content {
     @Id
     private String id;

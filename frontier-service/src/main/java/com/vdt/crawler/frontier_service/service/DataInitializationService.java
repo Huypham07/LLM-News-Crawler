@@ -35,8 +35,6 @@ public class DataInitializationService implements CommandLineRunner {
     @Override
     public void run(String... args) {
         initDomain();
-
-        startGettingInitialSeedUrls();
     }
 
     private void initDomain() {
@@ -65,15 +63,13 @@ public class DataInitializationService implements CommandLineRunner {
 
             domainRepository.saveAll(domainsToSave);
             logger.info("Added {} domain(s)", newDomains.size());
+
+            existingDomains = domainRepository.findAll()
+                    .stream()
+                    .map(Domain::getDomain)
+                    .toList();
         } else {
             logger.info("All configured domains already exist in the database.");
-        }
-    }
-
-    private void startGettingInitialSeedUrls() {
-        for (String domain : existingDomains) {
-            String url = "https://" + domain;
-            frontierService.addToFrontier(url);
         }
     }
 

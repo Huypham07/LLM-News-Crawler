@@ -28,7 +28,7 @@ public class FrontierConsumer {
     @Autowired
     public FrontierConsumer(FrontierService frontierService) {
         this.frontierService = frontierService;
-        this.executorService = Executors.newFixedThreadPool(10); // Thread pool for parallel processing
+        this.executorService = Executors.newFixedThreadPool(8); // Thread pool for parallel processing
         this.retryExecutorService = Executors.newFixedThreadPool(2);
     }
 
@@ -39,7 +39,7 @@ public class FrontierConsumer {
             topics = "new_url_tasks",
             containerFactory = "newUrlListenerContainerFactory",
             groupId = "new_url_group",
-            concurrency = "10"
+            concurrency = "8"
     )
     public void handleNewUrls(
             @Payload String message,

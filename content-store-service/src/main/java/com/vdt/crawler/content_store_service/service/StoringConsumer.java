@@ -24,7 +24,7 @@ public class StoringConsumer {
     @Autowired
     public StoringConsumer(StoringService storingService) {
         this.storingService = storingService;
-        this.executorService = Executors.newFixedThreadPool(10);
+        this.executorService = Executors.newFixedThreadPool(8);
     }
 
     /**
@@ -33,7 +33,7 @@ public class StoringConsumer {
     @KafkaListener(
             topics = "storing_tasks",
             groupId = "storing_group",
-            concurrency = "10",
+            concurrency = "8",
             containerFactory = "parsingListenerContainerFactory"
     )
     public void handleStoringTask(

@@ -152,36 +152,47 @@ public class LLMParsing {
      */
     private ContentCssSelector getCssSelector(Document doc, String host) throws LLMParsingException, RateLimitExceededException, MaxTokenLLMException {
         // Track request timing
+//        long startTime = System.currentTimeMillis();
+//
+//        // Check rate limit and wait if needed
+//        waitForRateLimit();
+//
+//        boolean acquired = false;
+//        try {
+//            acquired = concurrentLimiter.tryAcquire(30, TimeUnit.SECONDS);
+//            if (!acquired) {
+//                throw new RateLimitExceededException("Could not acquire concurrent permit within 30 seconds");
+//            }
+//
+//            // Clean and optimize HTML
+//            String optimizedHtml = optimizeHtmlForLLM(doc);
+//
+//            // Check token limit
+//            if (estimateTokens(optimizedHtml) > MAX_TOKENS_PER_REQUEST) {
+//                throw new MaxTokenLLMException("HTML too large", host);
+//            }
+//
+//            recordRequest(startTime);
+//            return makeGeminiApiCall(optimizedHtml, host, startTime);
+//        } catch (InterruptedException e) {
+//            Thread.currentThread().interrupt();
+//            throw new LLMParsingException("Thread interrupted while waiting for rate limit", host);
+//        } finally {
+//            if (acquired) {
+//                concurrentLimiter.release();
+//            }
+//        }
+
         long startTime = System.currentTimeMillis();
+        // Clean and optimize HTML
+        String optimizedHtml = optimizeHtmlForLLM(doc);
 
-        // Check rate limit and wait if needed
-        waitForRateLimit();
-
-        boolean acquired = false;
-        try {
-            acquired = concurrentLimiter.tryAcquire(30, TimeUnit.SECONDS);
-            if (!acquired) {
-                throw new RateLimitExceededException("Could not acquire concurrent permit within 30 seconds");
-            }
-
-            // Clean and optimize HTML
-            String optimizedHtml = optimizeHtmlForLLM(doc);
-
-            // Check token limit
-            if (estimateTokens(optimizedHtml) > MAX_TOKENS_PER_REQUEST) {
-                throw new MaxTokenLLMException("HTML too large", host);
-            }
-
-            recordRequest(startTime);
-            return makeGeminiApiCall(optimizedHtml, host, startTime);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new LLMParsingException("Thread interrupted while waiting for rate limit", host);
-        } finally {
-            if (acquired) {
-                concurrentLimiter.release();
-            }
+        // Check token limit
+        if (estimateTokens(optimizedHtml) > MAX_TOKENS_PER_REQUEST) {
+            throw new MaxTokenLLMException("HTML too large", host);
         }
+
+        return makeGeminiApiCall(optimizedHtml, host, startTime);
     }
 
     /**
@@ -243,7 +254,7 @@ public class LLMParsing {
                     host, estimateTokens(prompt));
 
             GenerateContentResponse response = genaiClient.models.generateContent(
-                    "gemini-2.0-flash-lite-001", prompt, null);
+                    "gemini-2.0-flash-001", prompt, null);
 
             long endTime = System.currentTimeMillis();
             logger.info("Gemini API call completed for domain: {} in {}ms", host, endTime - startTime);
@@ -267,17 +278,10 @@ public class LLMParsing {
         // Clone document to avoid modifying original
         Document cleanDoc = doc.clone();
 
-        // Remove unnecessary elements
-//        cleanDoc.select("script, style, noscript, iframe, embed, object").remove();
-//        cleanDoc.select("head, header, nav, footer, .advertisement, .ads").remove();
-//        cleanDoc.select("[class*='ad'], [id*='ad'], [class*='banner'], [id*='banner']").remove();
-//        cleanDoc.select(".social, .share, .comment, .related").remove();
-
-        cleanDoc.select("script, style").remove();
-        cleanDoc.select("head").remove();
-        cleanDoc.select(".ads, .advertisment, .social").remove();
-        cleanDoc.select("footer").remove();
-
+        cleanDoc.select("script, noscript, style, svg, img, link").remove();
+        cleanDoc.select("head, footer, nav, [class*='menu'], [class*='nav']").remove();
+        cleanDoc.select(".ads, .advertisment, .social, .copy-right, #copy-right").remove();
+        cleanDoc.select("[id*='banner'], [class*='banner'], [class*='comment'], [id*='comment'], [class*='share'], [id*='share']").remove();
         return cleanDoc.html();
     }
 
@@ -354,10 +358,10 @@ Rules:
 
     private String parseElementText(Document doc, String selector) {
         try {
-            doc.select("script, style").remove();
-            doc.select("head").remove();
-            doc.select(".ads, .advertisment, .social").remove();
-            doc.select("footer").remove();
+            doc.select("script, noscript, style, svg, img, link").remove();
+            doc.select("head, footer, nav, [class*='menu'], [class*='nav']").remove();
+            doc.select(".ads, .advertisment, .social, .copy-right, #copy-right").remove();
+            doc.select("[id*='banner'], [class*='banner'], [class*='comment'], [id*='comment'], [class*='share'], [id*='share']").remove();
 
             Elements elements = doc.select(selector);
             if (!elements.isEmpty()) {

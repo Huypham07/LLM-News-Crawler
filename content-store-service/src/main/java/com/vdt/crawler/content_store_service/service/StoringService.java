@@ -63,13 +63,13 @@ public class StoringService {
 
             // Check if content already exists
             if (contentRepository.existsByUrl(content.getUrl())) {
-                contentStoringMetrics.incrementStoredContent();
                 logger.info("Content with URL {} already exists, updating...", content.getUrl());
                 updateExistingContent(content);
-            } else {
                 contentStoringMetrics.incrementStoredContent();
+            } else {
                 logger.info("Storing new content with URL: {}", content.getUrl());
                 createNewContent(content);
+                contentStoringMetrics.incrementStoredContent();
             }
 
         }

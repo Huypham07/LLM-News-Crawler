@@ -34,7 +34,7 @@ public class SchedulerController {
     }
 
 
-    @GetMapping("/domains/{domain}")
+    @GetMapping("/domains/{domain:.+}")
     public ResponseEntity<Domain> getDomainByName(@PathVariable String domain) {
         return domainRepository.findByDomain(domain)
                 .map(ResponseEntity::ok)
@@ -46,7 +46,7 @@ public class SchedulerController {
         return domainRepository.save(domain);
     }
 
-    @PutMapping("/domains/{domain}")
+    @PutMapping("/domains/{domain:.+}")
     public ResponseEntity<Domain> updateDomain(@PathVariable String domain, @RequestBody @Valid Domain domainDetails) {
         return domainRepository.findByDomain(domain)
                 .map(domainObj -> {
@@ -64,7 +64,7 @@ public class SchedulerController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @DeleteMapping("/domains/{domain}")
+    @DeleteMapping("/domains/{domain:.+}")
     public ResponseEntity<?> deleteDomain(@PathVariable String domain) {
         return domainRepository.findByDomain(domain)
                 .map(domainObj -> {
@@ -84,7 +84,7 @@ public class SchedulerController {
         }
     }
 
-    @PostMapping("/trigger/{domain}")
+    @PostMapping("/trigger/{domain:.+}")
     public ResponseEntity<String> triggerDomainCrawl(@PathVariable String domain) {
         try {
             schedulerService.scheduleDomainCrawlManually(domain);

@@ -48,11 +48,13 @@ public class ContentExtractor implements Parsing{
 
             String url = UrlUtil.extractCurrentUrl(doc);
 
-            if (urlFilter.isLikelyArticleByUrl(url)) {
-                logger.info(">>> Likely article url, parse: {}", url);
-                result = llmParsing.getParsingContent(doc, url);
-            } else {
-                logger.warn(">>> Not likely article url, extract urls only: {}", url);
+            if (url != null) {
+                if (urlFilter.isLikelyArticleByUrl(url)) {
+                    logger.info(">>> Likely article url, parse: {}", url);
+                    result = llmParsing.getParsingContent(doc, url);
+                } else {
+                    logger.warn(">>> Not likely article url, extract urls only: {}", url);
+                }
             }
 
             return result;

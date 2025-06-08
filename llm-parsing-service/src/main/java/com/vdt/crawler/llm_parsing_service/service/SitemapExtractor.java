@@ -38,15 +38,13 @@ public class SitemapExtractor implements Parsing{
             ".nav", ".navigation", ".navbar", ".menu", ".main-menu", ".primary-menu",
             ".header-menu", ".top-menu", ".site-nav", ".main-nav", ".menu-nav", ".header-nav", ".primary-nav",
             "#nav", "#navigation", "#navbar", "#menu", "#main-menu", "#primary-menu", "#header-menu", "#primary-nav", "#header-nav", "#menu-nav",
-            "[role=navigation]", "[role=menubar]",
-            ".megamenu", ".dropdown-menu"
+           ".dropdown-menu"
     };
 
     // Selectors for header area (can have nav)
     private static final String[] HEADER_SELECTORS = {
             "header", ".header", ".site-header", ".page-header", ".main-header",
             "#header", "#site-header", "#page-header", "#main-header",
-            ".masthead", ".banner", ".top-bar"
     };
 
     @Override
@@ -92,7 +90,7 @@ public class SitemapExtractor implements Parsing{
             // extract nav element
             extractFromNavigationElements(doc, baseUrl, uniqueUrls);
             // extract header area
-            extractFromHeaderArea(doc, baseUrl, uniqueUrls);
+//            extractFromHeaderArea(doc, baseUrl, uniqueUrls);
             // extract prominent links
 //            extractProminentLinks(doc, baseUrl, uniqueUrls);
             // extract category links

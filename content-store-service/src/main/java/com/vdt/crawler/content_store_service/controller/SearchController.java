@@ -33,7 +33,7 @@ public class SearchController {
             @Parameter(description = "Page number (0-based)")
             @RequestParam(value = "page", defaultValue = "0") int page,
             @Parameter(description = "Page size")
-            @RequestParam(value = "size", defaultValue = "10") int size) {
+            @RequestParam(value = "size", defaultValue = "5") int size) {
 
         logger.info("Search request - keyword: '{}', page: {}, size: {}", keyword, page, size);
 
@@ -49,102 +49,11 @@ public class SearchController {
             @Parameter(description = "Page number (0-based)")
             @RequestParam(value = "page", defaultValue = "0") int page,
             @Parameter(description = "Page size")
-            @RequestParam(value = "size", defaultValue = "10") int size) {
+            @RequestParam(value = "size", defaultValue = "5") int size) {
 
         logger.info("Semantic search request - query: '{}', page: {}, size: {}", query, page, size);
 
         Page<Content> results = searchService.searchBySemantic(query, page, size);
         return ResponseEntity.ok(results);
-    }
-
-    @GetMapping("/hybrid")
-    @Operation(summary = "Hybrid search", description = "Combined traditional text search and semantic search for best results")
-    public ResponseEntity<Page<Content>> hybridSearch(
-            @Parameter(description = "Search query for hybrid search")
-            @RequestParam(value = "q") String query,
-            @Parameter(description = "Page number (0-based)")
-            @RequestParam(value = "page", defaultValue = "0") int page,
-            @Parameter(description = "Page size")
-            @RequestParam(value = "size", defaultValue = "10") int size) {
-
-        logger.info("Hybrid search request - query: '{}', page: {}, size: {}", query, page, size);
-
-        Page<Content> results = searchService.hybridSearch(query, page, size);
-        return ResponseEntity.ok(results);
-    }
-
-    @GetMapping("/author")
-    @Operation(summary = "Search by author", description = "Search content by author name using Vietnamese analyzer")
-    public ResponseEntity<Page<Content>> searchByAuthor(
-            @Parameter(description = "Author name in Vietnamese")
-            @RequestParam(value = "author") String author,
-            @Parameter(description = "Page number (0-based)")
-            @RequestParam(value = "page", defaultValue = "0") int page,
-            @Parameter(description = "Page size")
-            @RequestParam(value = "size", defaultValue = "10") int size) {
-
-        logger.info("Author search request - author: '{}', page: {}, size: {}", author, page, size);
-
-        Page<Content> results = searchService.searchByAuthor(author, page, size);
-        return ResponseEntity.ok(results);
-    }
-
-
-    @GetMapping("/advanced")
-    @Operation(summary = "Advanced search", description = "Advanced multi-field search with Vietnamese analyzer")
-    public ResponseEntity<Page<Content>> advancedSearch(
-            @Parameter(description = "Search query (searches across title, content, and author)")
-            @RequestParam(value = "q") String query,
-            @Parameter(description = "Page number (0-based)")
-            @RequestParam(value = "page", defaultValue = "0") int page,
-            @Parameter(description = "Page size")
-            @RequestParam(value = "size", defaultValue = "10") int size) {
-
-        logger.info("Advanced search request - query: '{}', page: {}, size: {}", query, page, size);
-
-        Page<Content> results = searchService.advancedSearch(query, page, size);
-        return ResponseEntity.ok(results);
-    }
-
-    @GetMapping("/title")
-    @Operation(summary = "Search by title", description = "Search content by title only")
-    public ResponseEntity<Page<Content>> searchByTitle(
-            @Parameter(description = "Title to search for")
-            @RequestParam(value = "title") String title,
-            @Parameter(description = "Page number (0-based)")
-            @RequestParam(value = "page", defaultValue = "0") int page,
-            @Parameter(description = "Page size")
-            @RequestParam(value = "size", defaultValue = "10") int size) {
-
-        logger.info("Title search request - title: '{}', page: {}, size: {}", title, page, size);
-
-        Page<Content> results = searchService.searchByTitle(title, page, size);
-        return ResponseEntity.ok(results);
-    }
-
-    @GetMapping("/recent")
-    @Operation(summary = "Get recent content", description = "Get most recently added content")
-    public ResponseEntity<Page<Content>> getRecentContent(
-            @Parameter(description = "Page number (0-based)")
-            @RequestParam(value = "page", defaultValue = "0") int page,
-            @Parameter(description = "Page size")
-            @RequestParam(value = "size", defaultValue = "10") int size) {
-
-        logger.info("Recent content request - page: {}, size: {}", page, size);
-
-        Page<Content> results = searchService.getRecentContent(page, size);
-        return ResponseEntity.ok(results);
-    }
-
-    @GetMapping("/exists")
-    @Operation(summary = "Check if content exists", description = "Check if content exists by URL")
-    public ResponseEntity<Boolean> existsByUrl(
-            @Parameter(description = "Content URL")
-            @RequestParam(value = "url") String url) {
-
-        logger.info("Existence check request - url: '{}'", url);
-
-        boolean exists = searchService.existsByUrl(url);
-        return ResponseEntity.ok(exists);
     }
 }

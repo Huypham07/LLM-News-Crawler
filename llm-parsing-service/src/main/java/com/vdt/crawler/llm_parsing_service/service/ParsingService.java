@@ -24,9 +24,8 @@ public class ParsingService {
     public void parse(String rawHtml, int type) {
         if (type == Parsing.SITEMAP) {
             sitemapExtractor.parse(rawHtml);
-        } else {
-            contentExtractor.parse(rawHtml);
-            urlExtractor.parse(rawHtml);
         }
+        contentExtractor.parse(rawHtml);
+        urlExtractor.parse(rawHtml);
     }
 }

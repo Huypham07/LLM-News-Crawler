@@ -24,7 +24,7 @@ public class FetcherConsumer {
     @Autowired
     public FetcherConsumer(FetcherService fetcherService) {
         this.fetcherService = fetcherService;
-        this.executorService = Executors.newFixedThreadPool(10); // Thread pool for parallel processing
+        this.executorService = Executors.newFixedThreadPool(8); // Thread pool for parallel processing
     }
 
     /**
@@ -33,7 +33,7 @@ public class FetcherConsumer {
     @KafkaListener(
             topics = "fetching_tasks",
             groupId = "fetching_group",
-            concurrency = "10"
+            concurrency = "8"
     )
     public void handleCrawlerTask(
             @Payload String message,
