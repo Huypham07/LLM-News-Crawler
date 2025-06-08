@@ -13,6 +13,7 @@ import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -56,18 +57,19 @@ public class SearchService {
         int from = (int) pageable.getOffset();
         int size = pageable.getPageSize();
 
+        List<Float> vector = new ArrayList<>();
+        for (float qv : queryVector) {
+            vector.add(qv);
+        }
         SearchResponse<Content> response = elasticsearchClient.search(s -> s
                         .index("contents")
                         .from(from)
                         .size(size)
-                        .query(q -> q
-                                .scriptScore(ss -> ss
-                                        .query(innerQ -> innerQ.exists(e -> e.field("content_embedding")))
-                                        .script(script -> script
-                                                .source("cosineSimilarity(params.query_vector, 'content_embedding') + 1.0")
-                                                .params("query_vector", JsonData.of(queryVector))
-                                        )
-                                )
+                        .knn(knn -> knn
+                                .field("content_embedding")
+                                .queryVector(vector)
+                                .k(Math.max(size * 2, 100))
+                                .numCandidates(Math.max(size * 10, 1000))
                         ),
                 Content.class
         );

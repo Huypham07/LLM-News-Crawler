@@ -227,26 +227,26 @@ services:
       - crawler-network
 
   # Kibana
-  kibana:
-    image: docker.elastic.co/kibana/kibana:8.7.0
-    container_name: kibana
-    restart: unless-stopped
-    ports:
-      - "5601:5601"
-    environment:
-      - ELASTICSEARCH_URL=http://elasticsearch:9200
-      - ELASTICSEARCH_HOSTS=["http://elasticsearch:9200"]
-      - ELASTICSEARCH_USERNAME=root
-      - ELASTICSEARCH_PASSWORD=root
-      - xpack.security.enabled=false
-    networks:
-      - crawler-network
-    depends_on:
-      - elasticsearch
-    deploy:
-      resources:
-        limits:
-          memory: 1g
+#  kibana:
+#    image: docker.elastic.co/kibana/kibana:8.7.0
+#    container_name: kibana
+#    restart: unless-stopped
+#    ports:
+#      - "5601:5601"
+#    environment:
+#      - ELASTICSEARCH_URL=http://elasticsearch:9200
+#      - ELASTICSEARCH_HOSTS=["http://elasticsearch:9200"]
+#      - ELASTICSEARCH_USERNAME=root
+#      - ELASTICSEARCH_PASSWORD=root
+#      - xpack.security.enabled=false
+#    networks:
+#      - crawler-network
+#    depends_on:
+#      - elasticsearch
+#    deploy:
+#      resources:
+#        limits:
+#          memory: 1g
 
 
   # Frontier Service
