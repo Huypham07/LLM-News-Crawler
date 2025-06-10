@@ -1,7 +1,6 @@
 package com.vdt.crawler.content_store_service.service;
 
 import com.google.genai.Client;
-import com.google.genai.types.ContentEmbedding;
 import com.google.genai.types.EmbedContentConfig;
 import com.google.genai.types.EmbedContentResponse;
 import org.slf4j.Logger;
@@ -10,7 +9,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class EmbeddingService {
@@ -33,10 +31,13 @@ public class EmbeddingService {
                 return new float[0];
             }
 
+            // Hỗ trợ tốt cho tiếng việt nhưng bị giới hạn nhiều
+
             EmbedContentResponse response = genaiClient.models
-                    .embedContent("text-embedding-004", text,
+                    .embedContent("gemini-embedding-exp-03-07", text,
                             EmbedContentConfig.builder()
                                     .taskType("SEMANTIC_SIMILARITY")
+                                    .outputDimensionality(768)
                                     .build()
                     );
 
@@ -53,12 +54,13 @@ public class EmbeddingService {
                 }
             }
 
-            return new float[0];
+            return null;
         } catch (Exception e) {
             logger.error("Error generating embedding for text: {}", text.substring(0, Math.min(100, text.length())), e);
-            return new float[0];
+            return null;
         }
     }
+
 
     /**
      * Generate embedding for title + content combination

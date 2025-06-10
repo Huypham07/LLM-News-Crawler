@@ -23,7 +23,7 @@ public class SchedulerService {
         this.frontierService = frontierService;
     }
 
-    @Scheduled(initialDelay = 30000, fixedRate = 1200000) // 20 minutes = 1200000 milliseconds
+    @Scheduled(initialDelay = 90000, fixedRate = 1200000) // 20 minutes = 1200000 milliseconds
     public void scheduleCrawling() throws MalformedURLException {
         logger.info(">>> Starting scheduled Crawling task ...");
         List<Domain> activeDomains = domainRepository.findByActiveTrue();

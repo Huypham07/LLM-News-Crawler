@@ -1,11 +1,4 @@
 {
-  "settings": {
-    "index": {
-      "number_of_shards": 1,
-      "number_of_replicas": 1,
-      "knn": true,
-      "knn.space_type": "l2"
-  },
   "analysis": {
     "analyzer": {
       "vi_analyzer": {

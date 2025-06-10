@@ -65,11 +65,14 @@ public class SearchService {
                         .index("contents")
                         .from(from)
                         .size(size)
-                        .knn(knn -> knn
-                                .field("content_embedding")
-                                .queryVector(vector)
-                                .k(Math.max(size * 2, 100))
-                                .numCandidates(Math.max(size * 10, 1000))
+                        .query(q -> q
+                                .scriptScore(ss -> ss
+                                        .query(innerQ -> innerQ.exists(e -> e.field("content_embedding")))
+                                        .script(script -> script
+                                                .source("cosineSimilarity(params.query_vector, 'content_embedding') + 1.0")
+                                                .params("query_vector", JsonData.of(queryVector))
+                                        )
+                                )
                         ),
                 Content.class
         );

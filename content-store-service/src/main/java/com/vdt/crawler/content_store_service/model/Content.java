@@ -16,7 +16,6 @@ import java.time.Instant;
 @AllArgsConstructor
 @Document(indexName = "contents")
 @Setting(settingPath = "elasticsearch/content-settings.json")
-@Mapping(mappingPath = "elasticsearch/content-mapping.json")
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Content {
     @Id
@@ -39,7 +38,6 @@ public class Content {
 
     @Field(type = FieldType.Date, name = "publish_at", format = DateFormat.date_time)
     @JsonProperty("publish_at")
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "UTC")
     private Instant publishAt;
 
     @Field(type = FieldType.Dense_Vector, dims = 768, name = "content_embedding")

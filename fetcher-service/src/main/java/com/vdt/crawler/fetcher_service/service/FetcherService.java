@@ -116,6 +116,7 @@ public class FetcherService {
             urlMetaData.setRetryCount(urlMetaData.getRetryCount() + 1);
             urlRepository.save(urlMetaData);
             redisTemplate.opsForValue().set("status:" + urlHash, (long) result.getStatusCode(), Duration.ofMinutes(20));
+            redisTemplate.opsForValue().set("retry_count:" + urlHash, (long) urlMetaData.getRetryCount(),  Duration.ofMinutes(20));
             retryKafkaTemplate.send("retry_url_tasks", new RetryUrlMessage(url, urlMetaData.getRetryCount(),
                     urlMetaData.getLastAttempt(), urlMetaData.getStatusCode()));
             fetcherMetrics.incrementFailedUrls(host);
@@ -128,6 +129,7 @@ public class FetcherService {
         // save in DB and Redis
         urlRepository.save(urlMetaData);
         redisTemplate.opsForValue().set("status:" + urlHash, (long) result.getStatusCode(), Duration.ofHours(1));
+        redisTemplate.opsForValue().set("retry_count:" + urlHash, (long) urlMetaData.getRetryCount(),  Duration.ofHours(1));
 
 
         if (path.isEmpty() || path.equals("/")) {

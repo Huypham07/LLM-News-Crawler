@@ -36,11 +36,13 @@ public class UrlFilter {
             URLMetaData urlMetaData = null;
 
             Long status = redisTemplate.opsForValue().get("status:" + urlHash);
-            if (status == null) {
+            Long retryCount = redisTemplate.opsForValue().get("retry_count:" + urlHash);
+            if (status == null && retryCount == null) {
                 Optional<URLMetaData> urlMetaDataOptional = urlRepository.findById(urlHash);
                 if (urlMetaDataOptional.isPresent()) {
                     urlMetaData = urlMetaDataOptional.get();
                     status = Long.valueOf(urlMetaData.getStatusCode());
+                    retryCount = (long) urlMetaData.getRetryCount();
                 }
             }
 
@@ -49,7 +51,7 @@ public class UrlFilter {
                 return true;
             }
 
-            if (status != 200 && urlMetaData.getRetryCount() > 3) {
+            if (status != 200 && retryCount > 3) {
                 // < 5mins
                 return Instant.now().toEpochMilli() - urlMetaData.getLastAttempt().toEpochMilli() >= 5 * 60 * 1000;
             }
