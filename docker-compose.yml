@@ -248,6 +248,24 @@ services:
 #        limits:
 #          memory: 1g
 
+  # Ollama Service
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+      - OLLAMA_HOST=0.0.0.0
+    networks:
+      - crawler-network
+    deploy:
+      resources:
+        limits:
+          memory: 4G
 
   # Frontier Service
   frontier-service:
@@ -373,7 +391,8 @@ services:
       - ELASTICSEARCH_USERNAME=root
       - ELASTICSEARCH_PASSWORD=root
       - JAVA_OPTS="-Xmx1g -Xms512m"
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_EMBEDDING_MODEL=hf.co/nomic-ai/nomic-embed-text-v2-moe-GGUF:Q6_K
     depends_on:
       mongo:
         condition: service_started
@@ -383,6 +402,8 @@ services:
         condition: service_started
       elasticsearch:
         condition: service_healthy
+      ollama:
+        condition: service_started
     volumes:
       - ./content-store-service/logs:/app/logs
     networks:
@@ -401,6 +422,7 @@ volumes:
   prometheus_data:
   grafana_data:
   elasticsearch_data:
+  ollama_data:
 
 networks:
   crawler-network:

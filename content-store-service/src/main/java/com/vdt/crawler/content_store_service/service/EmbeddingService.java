@@ -1,10 +1,9 @@
 package com.vdt.crawler.content_store_service.service;
 
-import com.google.genai.Client;
-import com.google.genai.types.EmbedContentConfig;
-import com.google.genai.types.EmbedContentResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.ai.embedding.EmbeddingModel;
+import org.springframework.ai.embedding.EmbeddingResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -12,13 +11,13 @@ import java.util.List;
 
 @Service
 public class EmbeddingService {
-    private final Client genaiClient;
+    private final EmbeddingModel embeddingModel;
     private static final Logger logger = LoggerFactory.getLogger(EmbeddingService.class);
 
 
     @Autowired
-    public EmbeddingService(Client genaiClient) {
-        this.genaiClient = genaiClient;
+    public EmbeddingService(EmbeddingModel embeddingModel) {
+        this.embeddingModel = embeddingModel;
     }
 
     /**
@@ -31,27 +30,14 @@ public class EmbeddingService {
                 return new float[0];
             }
 
-            // Hỗ trợ tốt cho tiếng việt nhưng bị giới hạn nhiều
+            EmbeddingResponse response = embeddingModel.embedForResponse(List.of(text));
 
-            EmbedContentResponse response = genaiClient.models
-                    .embedContent("gemini-embedding-exp-03-07", text,
-                            EmbedContentConfig.builder()
-                                    .taskType("SEMANTIC_SIMILARITY")
-                                    .outputDimensionality(768)
-                                    .build()
-                    );
 
-            if (response != null && response.embeddings().isPresent()) {
-                List<Float> embeddingsOpt = response.embeddings().get().get(0).values().orElse(null);
+            if (response != null && !response.getResults().isEmpty()) {
+                float[] embeddings = response.getResults().get(0).getOutput();
 
-                if (embeddingsOpt != null) {
-                    float[] embeddings = new float[embeddingsOpt.size()];
-                    for (int i = 0; i < embeddings.length; i++) {
-                        embeddings[i] = embeddingsOpt.get(i);
-                    }
-
-                    return embeddings;
-                }
+                logger.debug("Generated embedding with dimension: {}", embeddings.length);
+                return embeddings;
             }
 
             return null;

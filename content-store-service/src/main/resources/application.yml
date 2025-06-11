@@ -18,12 +18,26 @@ spring:
     username: ${ELASTIC_USERNAME:root}
     password:  ${ELASTIC_PASSWORD:root}
 
+  ai:
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      embedding:
+        options:
+          model: ${OLLAMA_EMBEDDING_MODEL:hf.co/nomic-ai/nomic-embed-text-v2-moe-GGUF:Q6_K}
+      init:
+        pull-model-strategy: when_missing
+        chat:
+          include: false
+
 elasticsearch:
   host: ${ELASTICSEARCH_HOST:localhost}
   port: ${ELASTICSEARCH_PORT:9200}
 
 
 management:
+  health:
+    elasticsearch:
+      enabled: false
   endpoints:
     web:
       exposure:
@@ -62,6 +76,3 @@ logging:
 springdoc:
   swagger-ui:
     path: /api/docs
-
-gemini:
-  api-key: ${GOOGLE_API_KEY:}
